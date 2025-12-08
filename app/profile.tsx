@@ -9,7 +9,9 @@ import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { BooksService } from '@/services/books.service';
 import { NotesService } from '@/services/notes.service';
+import type { Book } from '@/types';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
@@ -20,6 +22,7 @@ export default function ProfileScreen() {
 
   const [notes, setNotes] = useState<any[]>([]);
   const [folders, setFolders] = useState<any[]>([]);
+  const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
 
   const userName = user?.user_metadata?.name || 'Usuário';
@@ -29,13 +32,15 @@ export default function ProfileScreen() {
     if (!user) return;
 
     try {
-      const [notesData, foldersData] = await Promise.all([
+      const [notesData, foldersData, booksData] = await Promise.all([
         NotesService.getNotes(),
         NotesService.getFolders(),
+        BooksService.getBooks(),
       ]);
 
       setNotes(notesData);
       setFolders(foldersData);
+      setBooks(booksData);
     } catch (error: any) {
       console.error('Error loading data:', error);
     } finally {
@@ -127,7 +132,7 @@ export default function ProfileScreen() {
           </ThemedView>
           <ThemedView style={[styles.statDivider, { backgroundColor: textColor + '20' }]} />
           <ThemedView style={styles.statItem}>
-            <ThemedText style={styles.statValue}>0</ThemedText>
+            <ThemedText style={styles.statValue}>{books.length}</ThemedText>
             <ThemedText style={[styles.statLabel, { opacity: 0.6 }]}>Livros</ThemedText>
           </ThemedView>
           <ThemedView style={[styles.statDivider, { backgroundColor: textColor + '20' }]} />

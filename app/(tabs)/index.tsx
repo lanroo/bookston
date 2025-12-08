@@ -11,8 +11,9 @@ import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { BooksService } from '@/services/books.service';
 import { NotesService } from '@/services/notes.service';
-import type { Note } from '@/types';
+import type { Book, Note } from '@/types';
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -23,6 +24,7 @@ export default function HomeScreen() {
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [folders, setFolders] = useState<any[]>([]);
+  const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
 
   const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuário';
@@ -31,13 +33,15 @@ export default function HomeScreen() {
     if (!user) return;
 
     try {
-      const [notesData, foldersData] = await Promise.all([
+      const [notesData, foldersData, booksData] = await Promise.all([
         NotesService.getNotes(),
         NotesService.getFolders(),
+        BooksService.getBooks(),
       ]);
 
       setNotes(notesData);
       setFolders(foldersData);
+      setBooks(booksData);
     } catch (error: any) {
       console.error('Error loading data:', error);
     } finally {
@@ -61,7 +65,7 @@ export default function HomeScreen() {
 
   const stats = [
     { label: 'Notas', value: notes.length.toString(), icon: 'document-text', color: tintColor },
-    { label: 'Livros', value: '0', icon: 'library', color: tintColor },
+    { label: 'Livros', value: books.length.toString(), icon: 'library', color: tintColor },
     { label: 'Pastas', value: folders.length.toString(), icon: 'folder', color: tintColor },
   ];
 
