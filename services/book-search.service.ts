@@ -55,7 +55,6 @@ interface OpenLibrarySearchResponse {
 }
 
 import { logger } from '@/utils/logger';
-import { retry } from '@/utils/retry';
 
 export class BookSearchService {
 
@@ -95,7 +94,7 @@ export class BookSearchService {
     try {
       const encodedQuery = encodeURIComponent(query);
       const response = await fetch(
-        `https://www.googleapis.com/books/v1/volumes?q=${encodedQuery}&maxResults=${maxResults}&langRestrict=pt`
+        `https://www.googleapis.com/books/v1/volumes?q=${encodedQuery}&maxResults=${maxResults}&langRestrict=pt&printType=books`
       );
 
       if (!response.ok) {
@@ -114,9 +113,6 @@ export class BookSearchService {
     }
   }
 
-  /**
-   * Search books using Open Library API
-   */
   private static async searchOpenLibrary(query: string, maxResults: number): Promise<BookSearchResult[]> {
     try {
       const encodedQuery = encodeURIComponent(query);
@@ -140,21 +136,38 @@ export class BookSearchService {
     }
   }
 
-  /**
-   * Map Google Books response to unified BookSearchResult
-   */
+
   private static mapGoogleBookToResult(book: GoogleBookResponse): BookSearchResult | null {
     const volumeInfo = book.volumeInfo;
     
-    // Validar que tem título (obrigatório)
     if (!volumeInfo?.title) {
       return null;
     }
+
+    const title = volumeInfo.title.toLowerCase();
+    const description = (volumeInfo.description || '').toLowerCase();
+    const categories = (volumeInfo.categories || []).join(' ').toLowerCase();
+    const fullText = `${title} ${description} ${categories}`;
+
+    const nonBookKeywords = [
+      'trabalho', 'paper', 'thesis', 'dissertação', 'dissertacao', 'tese',
+      'artigo', 'article', 'journal', 'revista', 'proceedings', 'conference',
+      'workshop', 'abstract', 'resumo', 'monografia', 'relatório', 'relatorio',
+      'report', 'manual técnico', 'manual tecnico', 'technical manual',
+    ];
+
+    for (const keyword of nonBookKeywords) {
+      if (title.includes(keyword) || (description.length > 0 && description.substring(0, 200).includes(keyword))) {
+        return null;  
+      }
+    }
+
+    if (title.split(' ').length < 2) {
+      return null;
+    }
     
-    // Obter melhor URL de capa disponível
     const coverUrl = this.getBestCoverUrl(volumeInfo.imageLinks);
     
-    // Extrair ISBN
     const isbn = volumeInfo.industryIdentifiers?.find(
       (id) => id.type === 'ISBN_13' || id.type === 'ISBN_10'
     )?.identifier;
@@ -176,16 +189,32 @@ export class BookSearchService {
     };
   }
 
-  /**
-   * Map Open Library response to unified BookSearchResult
-   */
   private static mapOpenLibraryBookToResult(book: OpenLibraryBookResponse): BookSearchResult | null {
-    // Validar que tem título (obrigatório)
     if (!book.title) {
       return null;
     }
 
-    // Construir URL da capa do Open Library
+    const title = book.title.toLowerCase();
+    const subjects = (book.subject || []).join(' ').toLowerCase();
+    const fullText = `${title} ${subjects}`;
+
+    const nonBookKeywords = [
+      'trabalho', 'paper', 'thesis', 'dissertação', 'dissertacao', 'tese',
+      'artigo', 'article', 'journal', 'revista', 'proceedings', 'conference',
+      'workshop', 'abstract', 'resumo', 'monografia', 'relatório', 'relatorio',
+      'report', 'manual técnico', 'manual tecnico', 'technical manual',
+    ];
+
+    for (const keyword of nonBookKeywords) {
+      if (title.includes(keyword)) {
+        return null;  
+      }
+    }
+
+    if (title.split(' ').length < 2) {
+      return null;
+    }
+
     let coverUrl: string | undefined;
     if (book.cover_i) {
       coverUrl = `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`;
@@ -209,9 +238,6 @@ export class BookSearchService {
     };
   }
 
-  /**
-   * Get the best available cover URL from Google Books imageLinks
-   */
   private static getBestCoverUrl(
     imageLinks?: {
       thumbnail?: string;
@@ -222,7 +248,6 @@ export class BookSearchService {
   ): string | undefined {
     if (!imageLinks) return undefined;
 
-    // Priorizar imagens maiores
     const url =
       imageLinks.large ||
       imageLinks.medium ||
@@ -231,24 +256,18 @@ export class BookSearchService {
 
     if (!url) return undefined;
 
-    // Converter para HTTPS e remover parâmetros de zoom
     return url.replace(/&zoom=\d+/, '').replace('http://', 'https://');
   }
 
-  /**
-   * Remove duplicate books based on title and author similarity
-   */
   private static removeDuplicates(results: BookSearchResult[]): BookSearchResult[] {
     const seen = new Set<string>();
     const unique: BookSearchResult[] = [];
 
     for (const result of results) {
-      // Validar que o resultado tem título e autores
       if (!result.title || !result.authors || result.authors.length === 0) {
-        continue; // Pular resultados inválidos
+        continue;  
       }
 
-      // Criar chave única baseada em título e primeiro autor (normalizado)
       const normalizedTitle = (result.title || '').toLowerCase().trim();
       const normalizedAuthor = (result.authors[0] || '').toLowerCase().trim();
       const key = `${normalizedTitle}|${normalizedAuthor}`;
@@ -262,10 +281,6 @@ export class BookSearchService {
     return unique;
   }
 
-  /**
-   * Search books from a specific API
-   * Useful for testing or when you want results from only one source
-   */
   static async searchFromSource(
     source: 'google' | 'openlibrary',
     query: string,
