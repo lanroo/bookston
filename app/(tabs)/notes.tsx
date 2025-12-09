@@ -12,6 +12,7 @@ import { NoteInfoModal } from '@/components/note-info-modal';
 import { NoteModal } from '@/components/note-modal';
 import { NoteOptionsSheet } from '@/components/note-options-sheet';
 import { ScreenHeader } from '@/components/screen-header';
+import { useTabBarPadding } from '@/components/tab-bar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,6 +43,7 @@ export default function NotesScreen() {
   const [optionsSheetVisible, setOptionsSheetVisible] = useState(false);
   const [selectedNoteForOptions, setSelectedNoteForOptions] = useState<Note | null>(null);
   const indicatorAnim = useRef(new Animated.Value(viewMode === 'grid' ? 0 : 1)).current;
+  const tabBarPadding = useTabBarPadding();
 
   const filteredNotes = selectedFolder
     ? notes.filter((note) => note.folderId === selectedFolder)
@@ -311,7 +313,7 @@ export default function NotesScreen() {
       ) : (
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarPadding }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tintColor} />

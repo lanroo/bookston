@@ -114,7 +114,7 @@ export const notesStyles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 40,
+    flexGrow: 1,
   },
   notesGrid: {
     flexDirection: 'row',
