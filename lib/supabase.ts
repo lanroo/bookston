@@ -13,25 +13,6 @@ const isConfigured =
   supabaseUrl.startsWith('http');
 
 if (!isConfigured) {
-  const errorMessage = `
-╔══════════════════════════════════════════════════════════════╗
-║  ⚠️  SUPABASE NÃO CONFIGURADO                                ║
-╠══════════════════════════════════════════════════════════════╣
-║                                                              ║
-║  Para usar a autenticação, você precisa configurar:         ║
-║                                                              ║
-║  1. Crie um arquivo .env na raiz do projeto                 ║
-║  2. Adicione suas credenciais do Supabase:                  ║
-║                                                              ║
-║     EXPO_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co║
-║     EXPO_PUBLIC_SUPABASE_ANON_KEY=sua-chave-aqui            ║
-║                                                              ║
-║  3. Reinicie o servidor (npm start)                         ║
-║                                                              ║
-║  Veja SUPABASE_SETUP.md para instruções detalhadas          ║
-╚══════════════════════════════════════════════════════════════╝
-  `;
-  console.error(errorMessage);
   throw new Error('Supabase não está configurado. Configure as variáveis de ambiente EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY no arquivo .env');
 }
 
@@ -47,4 +28,3 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 });
-
