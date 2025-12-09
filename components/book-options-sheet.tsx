@@ -1,11 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, Modal, TouchableOpacity, View, Pressable, PanResponder, Animated } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import type { Book, BookStatus } from '@/types';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Modal, PanResponder, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface BookOptionsSheetProps {
   visible: boolean;
