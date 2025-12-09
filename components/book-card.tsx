@@ -21,6 +21,7 @@ export interface BookCardProps {
   onLongPress: () => void;
   onOptionsPress: () => void;
   dragHandleProps?: DragHandleProps | null;
+  isSwiped?: boolean;
 }
 
 /**
@@ -45,6 +46,7 @@ export const BookCard = React.memo(function BookCard({
   onLongPress,
   onOptionsPress,
   dragHandleProps,
+  isSwiped = false,
 }: BookCardProps) {
   return (
     <ThemedView
@@ -54,6 +56,8 @@ export const BookCard = React.memo(function BookCard({
           backgroundColor,
           borderColor: isSelected ? tintColor : isHoverTarget ? tintColor + '60' : textColor + '10',
           borderWidth: isSelected ? 2 : isHoverTarget ? 2 : 1,
+          borderTopRightRadius: isSwiped ? 0 : 16,
+          borderBottomRightRadius: isSwiped ? 0 : 16,
         },
       ]}>
       <TouchableOpacity
