@@ -14,12 +14,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { RecommendationsSection } from '@/components/book-recommendations';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedTextInput } from '@/components/themed-text-input';
 import { ThemedView } from '@/components/themed-view';
+import { useBookRecommendations } from '@/hooks/use-book-recommendations';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BookSearchService, type BookSearchResult } from '@/services/book-search.service';
 import { BooksService } from '@/services/books.service';
+import type { BookRecommendation } from '@/services/recommendations/book-recommendations.service';
 import type { BookStatus } from '@/types';
 import { logger } from '@/utils/logger';
 
@@ -44,8 +47,10 @@ export function BookSearchModal({
   const [searchResults, setSearchResults] = useState<BookSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [addingBook, setAddingBook] = useState<string | null>(null);
-  const [selectedBook, setSelectedBook] = useState<BookSearchResult | null>(null);
+  const [selectedBook, setSelectedBook] = useState<(BookSearchResult | BookRecommendation) | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<BookStatus>(defaultStatus);
+
+  const { recommendations, isLoading: recommendationsLoading } = useBookRecommendations(10);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -75,7 +80,7 @@ export function BookSearchModal({
     }
   };
 
-  const handleBookPress = (book: BookSearchResult) => {
+  const handleBookPress = (book: BookSearchResult | BookRecommendation) => {
     Keyboard.dismiss();
     setSelectedBook(book);
     setSelectedStatus(defaultStatus);
@@ -178,6 +183,15 @@ export function BookSearchModal({
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
+            {!searchQuery.trim() && (
+              <RecommendationsSection
+                recommendations={recommendations}
+                isLoading={recommendationsLoading}
+                onBookPress={handleBookPress}
+                title="Recomendado para você"
+              />
+            )}
+            
             {loading ? (
               <ThemedView style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={tintColor} />
