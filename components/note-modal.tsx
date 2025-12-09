@@ -18,6 +18,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { NotesService } from '@/services/notes.service';
 import type { Note } from '@/types';
+import { logger } from '@/utils/logger';
 
 interface NoteModalProps {
   visible: boolean;
@@ -160,7 +161,8 @@ export function NoteModal({ visible, onClose, onSave, note, folderId, mode = 'ed
         initialTextRef.current = savedText;
         
         onSave(updatedNote);
-      } catch (error: any) {
+      } catch (error) {
+        logger.error('Error auto-saving note', error, { noteId: note?.id });
       }
     }, 1000);
   }, [isEditing, note, loading, folderId, onSave, getCleanText, editingTitle]);
@@ -207,8 +209,9 @@ export function NoteModal({ visible, onClose, onSave, note, folderId, mode = 'ed
       initialTextRef.current = savedText;
       onClose();
       setText('');
-    } catch (error: any) {
-      Alert.alert('Erro', error.message || 'Não foi possível salvar a nota. Tente novamente.');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      Alert.alert('Erro', `Não foi possível salvar a nota: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -235,8 +238,9 @@ export function NoteModal({ visible, onClose, onSave, note, folderId, mode = 'ed
         setEditingTitle(false);
         initialTextRef.current = newText;
         onSave(updatedNote);
-      } catch (error: any) {
-        Alert.alert('Erro', 'Não foi possível atualizar o título.');
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+        Alert.alert('Erro', `Não foi possível atualizar o título: ${errorMessage}`);
       }
     } else if (cleanValue !== originalTitle && cleanValue.length > 0) {
       const formattedTitle = `**${cleanValue}**`;

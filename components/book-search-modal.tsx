@@ -20,6 +20,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BooksService } from '@/services/books.service';
 import { BookSearchService, type BookSearchResult } from '@/services/book-search.service';
+import { logger } from '@/utils/logger';
 import type { BookStatus } from '@/types';
 
 interface BookSearchModalProps {
@@ -67,8 +68,8 @@ export function BookSearchModal({
     try {
       const results = await BookSearchService.searchBooks(query, 20);
       setSearchResults(results);
-    } catch (error: any) {
-      console.error('Error searching books:', error);
+    } catch (error: unknown) {
+      logger.error('Error searching books', error, { query });
       Alert.alert('Erro', 'Não foi possível buscar livros. Verifique sua conexão.');
     } finally {
       setLoading(false);
@@ -100,9 +101,10 @@ export function BookSearchModal({
       Alert.alert('Sucesso', 'Livro adicionado com sucesso!');
       onBookAdded();
       handleClose();
-    } catch (error: any) {
-      console.error('Error adding book:', error);
-      Alert.alert('Erro', error.message || 'Não foi possível adicionar o livro.');
+    } catch (error) {
+      logger.error('Error adding book', error, { bookTitle: book.title });
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      Alert.alert('Erro', `Não foi possível adicionar o livro: ${errorMessage}`);
     } finally {
       setAddingBook(null);
       setSelectedBook(null);
@@ -321,7 +323,7 @@ export function BookSearchModal({
                       activeOpacity={0.7}>
                       <ThemedView style={[styles.statusOptionIcon, { backgroundColor: tintColor + '15' }]}>
                         <Ionicons 
-                          name={option.icon as any} 
+                          name={option.icon as keyof typeof Ionicons.glyphMap} 
                           size={24} 
                           color={isSelected ? tintColor : textColor + '60'} 
                         />
