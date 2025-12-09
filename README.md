@@ -38,9 +38,9 @@ cd my-app
 ```
 
 2. Instale as dependências:
-```bash
-npm install
-```
+   ```bash
+   npm install
+   ```
 
 3. Configure as variáveis de ambiente:
 Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis:

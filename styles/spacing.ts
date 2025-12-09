@@ -1,7 +1,3 @@
-/**
- * Espaçamentos padronizados do design system
- * Use estes valores para manter consistência visual
- */
 
 export const Spacing = {
   xs: 4,
@@ -42,4 +38,5 @@ export const Shadows = {
     elevation: 8,
   },
 } as const;
+
 

@@ -1,7 +1,4 @@
-/**
- * Estilos comuns reutilizáveis
- * Use estes estilos como base para componentes similares
- */
+
 
 import { StyleSheet } from 'react-native';
 import { BorderRadius, Shadows, Spacing } from './spacing';
@@ -74,4 +71,5 @@ export const commonStyles = StyleSheet.create({
   paddingMd: { padding: Spacing.md },
   paddingLg: { padding: Spacing.lg },
 });
+
 

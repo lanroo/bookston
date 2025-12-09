@@ -186,7 +186,7 @@ export default function SettingsScreen() {
           <ThemedText style={[styles.versionText, { opacity: 0.4 }]}>Versão 1.0.0</ThemedText>
         </ThemedView>
       </ScrollView>
-        
+          
       <Modal
         visible={showThemeModal}
         transparent
