@@ -39,7 +39,7 @@ export function NoteOptionsSheet({
       onPanResponderGrant: () => {
         isDragging.current = true;
 
-        const currentValue = (translateY as any)._value || 0;
+        const currentValue = (translateY as Animated.Value & { _value?: number })._value || 0;
         translateY.setOffset(currentValue);
         translateY.setValue(0);
       },
@@ -117,7 +117,7 @@ export function NoteOptionsSheet({
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
         isDragging.current = true;
-        const currentValue = (translateY as any)._value || 0;
+        const currentValue = (translateY as Animated.Value & { _value?: number })._value || 0;
         translateY.setOffset(currentValue);
         translateY.setValue(0);
       },

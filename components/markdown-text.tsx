@@ -2,12 +2,12 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, TextStyle } from 'react-native';
 
 interface MarkdownTextProps {
   content: string;
   numberOfLines?: number;
-  style?: any;
+  style?: TextStyle;
 }
 
 export function MarkdownText({ content, numberOfLines, style }: MarkdownTextProps) {

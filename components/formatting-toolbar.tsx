@@ -223,7 +223,7 @@ export function FormattingToolbar({
                   key={button.type}
                   style={[styles.menuItem, { borderColor: textColor + '10' }]}
                   onPress={() => handleFormat(button.type)}>
-                  <Ionicons name={button.icon as any} size={22} color={tintColor} />
+                  <Ionicons name={button.icon as keyof typeof Ionicons.glyphMap} size={22} color={tintColor} />
                   <ThemedText style={styles.menuItemText}>{button.label}</ThemedText>
                 </TouchableOpacity>
               ))}
