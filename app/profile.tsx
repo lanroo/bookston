@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { SignOutButton } from '@/components/settings';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,7 +19,7 @@ export default function ProfileScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
 
   const [notes, setNotes] = useState<any[]>([]);
   const [folders, setFolders] = useState<any[]>([]);
@@ -54,19 +55,6 @@ export default function ProfileScreen() {
     }, [loadData])
   );
 
-  const handleSignOut = async () => {
-    Alert.alert('Sair', 'Tem certeza que deseja sair?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Sair',
-        style: 'destructive',
-        onPress: async () => {
-          await signOut();
-          router.replace('/login');
-        },
-      },
-    ]);
-  };
 
   const menuItems = [
     {
@@ -159,12 +147,9 @@ export default function ProfileScreen() {
           ))}
         </ThemedView>
 
-        <TouchableOpacity
-          style={[styles.signOutButton, { backgroundColor: backgroundColor, borderColor: '#ff3b30' + '30' }]}
-          onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={20} color="#ff3b30" />
-          <ThemedText style={[styles.signOutText, { color: '#ff3b30' }]}>Sair da Conta</ThemedText>
-        </TouchableOpacity>
+        <ThemedView style={styles.signOutSection}>
+          <SignOutButton style={styles.signOutButton} />
+        </ThemedView>
 
         <ThemedView style={styles.versionContainer}>
           <ThemedText style={[styles.versionText, { opacity: 0.4 }]}>Versão 1.0.0</ThemedText>
@@ -270,19 +255,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    gap: 8,
+  signOutSection: {
     marginBottom: 24,
   },
-  signOutText: {
-    fontSize: 16,
-    fontWeight: '600',
+  signOutButton: {
+    marginBottom: 0,
   },
   versionContainer: {
     alignItems: 'center',
