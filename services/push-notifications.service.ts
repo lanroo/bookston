@@ -81,7 +81,6 @@ export class PushNotificationsService {
 
       const projectId = this.getProjectId();
       
-      // If no projectId, we can't get a push token, but local notifications still work
       if (!projectId) {
         console.warn('Push notifications: No projectId found. Remote push notifications are not available, but local notifications will work.');
         return null;
@@ -93,7 +92,7 @@ export class PushNotificationsService {
         await AsyncStorage.setItem(EXPO_PUSH_TOKEN_KEY, token);
         return token;
       } catch (error) {
-        // If error is specifically about projectId, log a helpful message
+
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes('projectId')) {
           console.warn('Push notifications: Unable to get push token. Local notifications will still work.');
@@ -147,12 +146,9 @@ export class PushNotificationsService {
     }
 
     try {
-      // Try to register for push token, but don't fail if it doesn't work
-      // Local notifications will still be available
       await this.registerForPushNotifications();
     } catch (error) {
       console.error('Error registering push token (local notifications will still work):', error);
-      // Continue even if push token registration fails
     }
 
     try {
@@ -164,9 +160,7 @@ export class PushNotificationsService {
     }
   }
 
-  /**
-   * Disable push notifications
-   */
+
   static async disable(): Promise<void> {
     try {
       await AsyncStorage.setItem(NOTIFICATION_ENABLED_KEY, 'false');
