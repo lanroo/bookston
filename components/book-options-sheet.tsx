@@ -1,9 +1,11 @@
+import { BookStatusButtons } from '@/components/book-status-buttons';
 import { ThemedText } from '@/components/themed-text';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import type { Book, BookStatus } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Modal, PanResponder, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Modal, PanResponder, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface BookOptionsSheetProps {
@@ -23,8 +25,8 @@ export function BookOptionsSheet({
 }: BookOptionsSheetProps) {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
-  const tintColor = useThemeColor({}, 'tint');
-  const [pressedOption, setPressedOption] = useState<string | null>(null);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const translateY = useRef(new Animated.Value(0)).current;
   const backdropOpacity = useRef(new Animated.Value(0.5)).current;
   const isDragging = useRef(false);
@@ -207,47 +209,6 @@ export function BookOptionsSheet({
 
   if (!book) return null;
 
-  const statusOptions: { id: BookStatus; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-    { id: 'want-to-read', label: 'Quero Ler', icon: 'bookmark-outline' },
-    { id: 'reading', label: 'Lendo', icon: 'book-outline' },
-    { id: 'read', label: 'Já Li', icon: 'checkmark-circle-outline' },
-    { id: 'rereading', label: 'Relendo', icon: 'refresh-outline' },
-  ];
-
-  const options: Array<{
-    id: string;
-    label: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    onPress: () => void;
-    color: string;
-    iconColor: string;
-  }> = [
-    ...statusOptions
-      .filter((status) => status.id !== book.status)
-      .map((status) => ({
-        id: `status-${status.id}`,
-        label: `Mover para "${status.label}"`,
-        icon: status.icon,
-        onPress: () => {
-          onClose();
-          onUpdateStatus(book, status.id);
-        },
-        color: textColor,
-        iconColor: tintColor,
-      })),
-    {
-      id: 'delete',
-      label: 'Deletar',
-      icon: 'trash-outline',
-      onPress: () => {
-        onClose();
-        onDelete(book);
-      },
-      color: '#ff3b30',
-      iconColor: '#ff3b30',
-    },
-  ];
-
   return (
     <Modal
       visible={visible}
@@ -286,41 +247,30 @@ export function BookOptionsSheet({
 
             <View style={styles.dragArea} {...sheetPanResponder.panHandlers} />
 
-            <View style={styles.optionsContainer}>
-              {options.map((option, index) => (
-                <Pressable
-                  key={option.id}
-                  style={({ pressed }) => [
-                    styles.option,
-                    index === options.length - 1 && styles.lastOption,
-                    pressed && styles.optionPressed,
-                  ]}
-                  onPress={option.onPress}
-                  onPressIn={() => setPressedOption(option.id)}
-                  onPressOut={() => setPressedOption(null)}>
-                  <View style={[styles.iconContainer, { backgroundColor: option.iconColor + '15' }]}>
-                    <Ionicons 
-                      name={option.icon} 
-                      size={22} 
-                      color={option.iconColor} 
-                    />
-                  </View>
-                  <ThemedText 
-                    style={[
-                      styles.optionLabel,
-                      { color: option.color },
-                      option.id === 'delete' && styles.deleteLabel,
-                    ]}>
-                    {option.label}
+            <View style={styles.content}>
+              <BookStatusButtons
+                currentStatus={book.status}
+                onStatusChange={(status) => {
+                  onClose();
+                  onUpdateStatus(book, status);
+                }}
+                onClose={onClose}
+              />
+
+              <View style={styles.deleteSection}>
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => {
+                    onClose();
+                    onDelete(book);
+                  }}
+                  activeOpacity={0.6}>
+                  <Ionicons name="trash-outline" size={22} color="#ff3b30" style={styles.deleteIcon} />
+                  <ThemedText style={styles.deleteLabel}>
+                    Deletar Livro
                   </ThemedText>
-                  <Ionicons 
-                    name="chevron-forward" 
-                    size={18} 
-                    color={textColor} 
-                    style={[styles.chevron, { opacity: 0.25 }]}
-                  />
-                </Pressable>
-              ))}
+                </TouchableOpacity>
+              </View>
             </View>
 
             <SafeAreaView edges={['bottom']} style={styles.bottomSafeArea} />
@@ -345,33 +295,33 @@ const styles = StyleSheet.create({
   },
   sheet: {
     width: '100%',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: -6,
+      height: -4,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 16,
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 12,
     paddingBottom: 0,
     overflow: 'hidden',
   },
   handleArea: {
     paddingTop: 8,
-    paddingBottom: 8,
+    paddingBottom: 4,
     paddingHorizontal: 20,
   },
   handleContainer: {
     alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   handle: {
-    width: 48,
-    height: 5,
-    borderRadius: 3,
+    width: 36,
+    height: 4,
+    borderRadius: 2,
   },
   dragArea: {
     position: 'absolute',
@@ -381,47 +331,32 @@ const styles = StyleSheet.create({
     height: 80,
     zIndex: 1,
   },
-  optionsContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
+  content: {
+    paddingBottom: 8,
   },
-  option: {
+  deleteSection: {
+    marginTop: 8,
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+  deleteButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    marginHorizontal: 8,
-    marginVertical: 4,
-    borderRadius: 14,
-    borderBottomWidth: 0,
-    minHeight: 64,
-  },
-  optionPressed: {
-    backgroundColor: 'rgba(0, 0, 0, 0.04)',
-  },
-  lastOption: {
-    borderBottomWidth: 0,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
+    minHeight: 50,
   },
-  optionLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
-    letterSpacing: -0.2,
+  deleteIcon: {
+    marginRight: 12,
+    width: 24,
   },
   deleteLabel: {
-    fontWeight: '600',
-  },
-  chevron: {
-    marginLeft: 8,
+    fontSize: 17,
+    fontWeight: '400',
+    color: '#ff3b30',
+    letterSpacing: -0.4,
   },
   bottomSafeArea: {
     minHeight: 0,
