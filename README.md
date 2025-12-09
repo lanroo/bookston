@@ -1,4 +1,4 @@
-# My App
+# My Book App
 
 Aplicativo mobile desenvolvido com React Native e Expo para gerenciamento de notas e biblioteca pessoal de livros.
 
