@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Animated, PanResponder, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { BookCard, BookCardProps } from '@/components/book-card';
@@ -24,18 +24,23 @@ export function SwipeableBookCard({
   const actionButtonOpacity = useRef(new Animated.Value(0)).current;
   const lastOffset = useRef(0);
   const isSwipeActive = useRef(false);
+  const [isSwiped, setIsSwiped] = useState(false);
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponder: () => {
+        // Allow pan responder if button is already open
+        if (lastOffset.current < 0) return true;
+        return false;
+      },
       onMoveShouldSetPanResponder: (_, gestureState) => {
         if (bookCardProps.selectionMode) return false;
         
         const isHorizontalSwipe = Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5;
-        const isLeftSwipe = gestureState.dx < -10;
-        const hasEnoughMovement = Math.abs(gestureState.dx) > 15;
+        const hasEnoughMovement = Math.abs(gestureState.dx) > 10;
         
-        if (isHorizontalSwipe && isLeftSwipe && hasEnoughMovement) {
+        // Allow horizontal swipe in both directions
+        if (isHorizontalSwipe && hasEnoughMovement) {
           return true;
         }
         
@@ -52,18 +57,30 @@ export function SwipeableBookCard({
       onPanResponderMove: (_, gestureState) => {
         if (!isSwipeActive.current) return;
         
-        const newValue = Math.min(0, lastOffset.current + gestureState.dx);
+        // Allow movement in both directions, but limit to reasonable bounds
+        const newValue = Math.max(-ACTION_BUTTON_WIDTH, Math.min(0, lastOffset.current + gestureState.dx));
         translateX.setValue(newValue - lastOffset.current);
         
-        const opacity = Math.min(1, Math.abs(newValue) / SWIPE_THRESHOLD);
+        // Calculate opacity based on how much the button is visible
+        const visibleAmount = Math.abs(newValue);
+        const opacity = Math.min(1, visibleAmount / ACTION_BUTTON_WIDTH);
         actionButtonOpacity.setValue(opacity);
+        
+        setIsSwiped(newValue < -10);
       },
       onPanResponderRelease: (_, gestureState) => {
         isSwipeActive.current = false;
         const currentValue = lastOffset.current + gestureState.dx;
+        const velocity = gestureState.vx;
         translateX.flattenOffset();
         
-        if (Math.abs(currentValue) > SWIPE_THRESHOLD && currentValue < 0) {
+        // Determine if we should open or close based on position and velocity
+        const isCurrentlyOpen = lastOffset.current < -ACTION_BUTTON_WIDTH / 2;
+        const shouldOpen = currentValue < -ACTION_BUTTON_WIDTH / 2 || (velocity < -0.5 && currentValue < -20);
+        const shouldClose = currentValue > -ACTION_BUTTON_WIDTH / 2 || (velocity > 0.5 && isCurrentlyOpen);
+        
+        if (shouldOpen && !shouldClose) {
+          // Open the button
           lastOffset.current = -ACTION_BUTTON_WIDTH;
           Animated.parallel([
             Animated.spring(translateX, {
@@ -78,8 +95,11 @@ export function SwipeableBookCard({
               tension: 100,
               friction: 8,
             }),
-          ]).start();
+          ]).start(() => {
+            setIsSwiped(true);
+          });
         } else {
+          // Close the button
           lastOffset.current = 0;
           Animated.parallel([
             Animated.spring(translateX, {
@@ -94,13 +114,16 @@ export function SwipeableBookCard({
               tension: 100,
               friction: 8,
             }),
-          ]).start();
+          ]).start(() => {
+            setIsSwiped(false);
+          });
         }
       },
       onPanResponderTerminate: () => {
         isSwipeActive.current = false;
         translateX.flattenOffset();
         lastOffset.current = 0;
+        setIsSwiped(false);
         Animated.parallel([
           Animated.spring(translateX, {
             toValue: 0,
@@ -122,6 +145,7 @@ export function SwipeableBookCard({
   const handleActionPress = () => {
     isSwipeActive.current = false;
     lastOffset.current = 0;
+    setIsSwiped(false);
     Animated.parallel([
       Animated.spring(translateX, {
         toValue: 0,
@@ -140,10 +164,35 @@ export function SwipeableBookCard({
     onReorderPress();
   };
 
+  const handleCardPress = () => {
+    if (lastOffset.current < 0) {
+      isSwipeActive.current = false;
+      lastOffset.current = 0;
+      setIsSwiped(false);
+      Animated.parallel([
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 8,
+        }),
+        Animated.spring(actionButtonOpacity, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 8,
+        }),
+      ]).start();
+    } else {
+      bookCardProps.onPress();
+    }
+  };
+
   React.useEffect(() => {
     if (bookCardProps.selectionMode && lastOffset.current !== 0) {
       isSwipeActive.current = false;
       lastOffset.current = 0;
+      setIsSwiped(false);
       Animated.parallel([
         Animated.spring(translateX, {
           toValue: 0,
@@ -171,7 +220,12 @@ export function SwipeableBookCard({
           },
         ]}
         {...panResponder.panHandlers}>
-        <BookCard {...bookCardProps} dragHandleProps={undefined} />
+        <BookCard 
+          {...bookCardProps} 
+          dragHandleProps={undefined} 
+          isSwiped={isSwiped}
+          onPress={handleCardPress}
+        />
       </Animated.View>
       
       <Animated.View
@@ -179,7 +233,7 @@ export function SwipeableBookCard({
           styles.actionButton,
           {
             opacity: actionButtonOpacity,
-            backgroundColor: tintColor,
+            backgroundColor: '#1a1a1a',
           },
         ]}>
         <TouchableOpacity
@@ -210,11 +264,15 @@ const styles = StyleSheet.create({
     width: ACTION_BUTTON_WIDTH,
     justifyContent: 'center',
     alignItems: 'center',
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
   },
   actionButtonContent: {
     justifyContent: 'center',
     alignItems: 'center',
     gap: 4,
+    width: '100%',
+    height: '100%',
   },
   actionButtonText: {
     color: '#fff',

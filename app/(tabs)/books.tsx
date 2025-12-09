@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BookDetailsModal } from '@/components/book-details-modal';
+import { BookDetailsModal } from '@/components/book-details/book-details-modal';
 import { BookOptionsSheet } from '@/components/book-options-sheet';
 import { BookSearchModal } from '@/components/book-search-modal';
 import { EmptyState } from '@/components/empty-state';
