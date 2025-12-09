@@ -1,15 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { EditProfileModal } from '@/components/profile/edit-profile-modal';
 import { SignOutButton } from '@/components/settings';
+import { PointsDisplay } from '@/components/social';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { supabase } from '@/lib/supabase';
 import { BooksService } from '@/services/books.service';
 import { NotesService } from '@/services/notes.service';
 import type { Book } from '@/types';
@@ -25,9 +28,19 @@ export default function ProfileScreen() {
   const [folders, setFolders] = useState<any[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pointsRefreshKey, setPointsRefreshKey] = useState(0);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [userName, setUserName] = useState(user?.user_metadata?.name || 'Usuário');
+  const [userUsername, setUserUsername] = useState(user?.user_metadata?.username || '');
 
-  const userName = user?.user_metadata?.name || 'Usuário';
   const userEmail = user?.email || '';
+
+  useEffect(() => {
+    if (user) {
+      setUserName(user.user_metadata?.name || 'Usuário');
+      setUserUsername(user.user_metadata?.username || '');
+    }
+  }, [user]);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -52,16 +65,26 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
+      setPointsRefreshKey((prev) => prev + 1);
     }, [loadData])
   );
 
+
+  const handleProfileSave = async (name: string, username: string) => {
+    setUserName(name);
+    setUserUsername(username);
+      const { data: { user: updatedUser } } = await supabase.auth.getUser();
+    if (updatedUser) {
+      await supabase.auth.refreshSession();
+    }
+  };
 
   const menuItems = [
     {
       icon: 'person-outline',
       label: 'Editar Perfil',
       onPress: () => {
-        console.log('Editar perfil');
+        setEditModalVisible(true);
       },
     },
     {
@@ -110,7 +133,17 @@ export default function ProfileScreen() {
           <ThemedText type="title" style={styles.userName}>
             {userName}
           </ThemedText>
-          <ThemedText style={[styles.userEmail, { opacity: 0.6 }]}>{userEmail}</ThemedText>
+          {userUsername ? (
+            <ThemedText style={[styles.userUsername, { color: tintColor }]}>
+              @{userUsername}
+            </ThemedText>
+          ) : (
+            <ThemedText style={[styles.userEmail, { opacity: 0.6 }]}>{userEmail}</ThemedText>
+          )}
+        </ThemedView>
+
+        <ThemedView style={styles.pointsSection}>
+          <PointsDisplay showLevel refreshKey={pointsRefreshKey} />
         </ThemedView>
 
         <ThemedView style={styles.statsContainer}>
@@ -155,6 +188,14 @@ export default function ProfileScreen() {
           <ThemedText style={[styles.versionText, { opacity: 0.4 }]}>Versão 1.0.0</ThemedText>
         </ThemedView>
       </ScrollView>
+
+      <EditProfileModal
+        visible={editModalVisible}
+        currentName={userName}
+        currentUsername={userUsername}
+        onClose={() => setEditModalVisible(false)}
+        onSave={handleProfileSave}
+      />
     </SafeAreaView>
   );
 }
@@ -185,7 +226,10 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
+  },
+  pointsSection: {
+    marginBottom: 24,
   },
   avatarContainer: {
     width: 96,
@@ -199,6 +243,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     marginBottom: 4,
+  },
+  userUsername: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 2,
   },
   userEmail: {
     fontSize: 14,
