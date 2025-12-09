@@ -1,3 +1,4 @@
+import React from 'react';
 import { StyleSheet, Text, type TextProps } from 'react-native';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -8,7 +9,16 @@ export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
 };
 
-export function ThemedText({
+/**
+ * ThemedText Component
+ * 
+ * A text component that automatically adapts to the current theme (light/dark).
+ * Memoized to prevent unnecessary re-renders.
+ * 
+ * @param props - ThemedText component props extending TextProps
+ * @returns Memoized themed text component
+ */
+export const ThemedText = React.memo(function ThemedText({
   style,
   lightColor,
   darkColor,
@@ -31,7 +41,7 @@ export function ThemedText({
       {...rest}
     />
   );
-}
+});
 
 const styles = StyleSheet.create({
   default: {

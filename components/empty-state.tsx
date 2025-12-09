@@ -24,7 +24,16 @@ interface EmptyStateProps {
   style?: ViewStyle;
 }
 
-export function EmptyState({
+/**
+ * EmptyState Component
+ * 
+ * Displays an empty state message with optional actions.
+ * Used when lists or content areas are empty.
+ * 
+ * @param props - EmptyState component props
+ * @returns Empty state component
+ */
+export const EmptyState = React.memo(function EmptyState({
   icon,
   title,
   description,
@@ -67,7 +76,7 @@ export function EmptyState({
       )}
     </ThemedView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   emptyState: {

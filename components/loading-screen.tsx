@@ -9,7 +9,16 @@ interface LoadingScreenProps {
   fullScreen?: boolean;
 }
 
-export function LoadingScreen({ message = 'Carregando...', fullScreen = true }: LoadingScreenProps) {
+/**
+ * LoadingScreen Component
+ * 
+ * Displays a loading indicator with optional message.
+ * Can be used as full screen or inline component.
+ * 
+ * @param props - LoadingScreen component props
+ * @returns Loading screen component
+ */
+export const LoadingScreen = React.memo(function LoadingScreen({ message = 'Carregando...', fullScreen = true }: LoadingScreenProps) {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
@@ -30,7 +39,7 @@ export function LoadingScreen({ message = 'Carregando...', fullScreen = true }: 
       </View>
     </ThemedView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

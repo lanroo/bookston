@@ -21,6 +21,15 @@ interface TabSelectorProps<T extends string> {
   style?: ViewStyle;
 }
 
+/**
+ * TabSelector Component
+ * 
+ * A horizontal tab selector with icons and optional badges.
+ * Generic component that works with any string-based tab IDs.
+ * 
+ * @param props - TabSelector component props
+ * @returns Tab selector component
+ */
 export function TabSelector<T extends string>({
   tabs,
   activeTab,

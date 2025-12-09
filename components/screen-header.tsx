@@ -15,7 +15,16 @@ interface ScreenHeaderProps {
   style?: ViewStyle;
 }
 
-export function ScreenHeader({
+/**
+ * ScreenHeader Component
+ * 
+ * Displays a screen header with title and optional action button.
+ * Memoized to prevent unnecessary re-renders.
+ * 
+ * @param props - ScreenHeader component props
+ * @returns Memoized screen header component
+ */
+export const ScreenHeader = React.memo(function ScreenHeader({
   title,
   onAddPress,
   addButtonIcon = 'add',
@@ -30,17 +39,24 @@ export function ScreenHeader({
       <ThemedText type="title" style={styles.headerTitle}>
         {title}
       </ThemedText>
-      {rightAction || (onAddPress && (
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: tintColor }]}
-          onPress={onAddPress}
-          activeOpacity={0.8}>
-          <Ionicons name={addButtonIcon} size={24} color={colorScheme === 'dark' ? '#000' : '#fff'} />
-        </TouchableOpacity>
-      ))}
+      <ThemedView style={styles.actionsContainer}>
+        {onAddPress && (
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: tintColor }]}
+            onPress={onAddPress}
+            activeOpacity={0.8}>
+            <Ionicons name={addButtonIcon} size={24} color={colorScheme === 'dark' ? '#000' : '#fff'} />
+          </TouchableOpacity>
+        )}
+        {rightAction && (
+          <ThemedView style={styles.rightActionContainer}>
+            {rightAction}
+          </ThemedView>
+        )}
+      </ThemedView>
     </ThemedView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   header: {
@@ -55,12 +71,20 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
   },
+  actionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   addButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  rightActionContainer: {
+    marginLeft: 0,
   },
 });
 
