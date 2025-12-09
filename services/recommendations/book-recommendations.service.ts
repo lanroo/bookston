@@ -1,11 +1,7 @@
-import { BookSearchService, type BookSearchResult } from '@/services/book-search.service';
+import { BookSearchService } from '@/services/book-search.service';
+import type { BookRecommendation, BookSearchResult, UserPreferences } from '@/types';
 import { BookFilterService } from './book-filter.service';
-import { UserPreferencesService, type UserPreferences } from './user-preferences.service';
-
-export interface BookRecommendation extends BookSearchResult {
-  reason: string;
-  matchScore: number;
-}
+import { UserPreferencesService } from './user-preferences.service';
 
 export class BookRecommendationsService {
   static async getRecommendations(limit: number = 20): Promise<BookRecommendation[]> {
@@ -156,7 +152,7 @@ export class BookRecommendationsService {
       }
 
       return recommendations
-        .sort((a, b) => b.matchScore - a.matchScore)
+        .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
         .slice(0, limit);
     } catch (error) {
       console.error('Error getting recommendations:', error);
@@ -282,7 +278,7 @@ export class BookRecommendationsService {
       }
 
       return recommendations
-        .sort((a, b) => b.matchScore - a.matchScore)
+        .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
         .slice(0, limit);
     } catch (error) {
       console.error('Error getting similar books:', error);

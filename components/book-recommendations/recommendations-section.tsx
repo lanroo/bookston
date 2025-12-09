@@ -6,7 +6,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } fro
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import type { BookRecommendation } from '@/services/recommendations/book-recommendations.service';
+import type { BookRecommendation } from '@/types';
 
 interface RecommendationsSectionProps {
   recommendations: BookRecommendation[];

@@ -20,10 +20,9 @@ import { ThemedTextInput } from '@/components/themed-text-input';
 import { ThemedView } from '@/components/themed-view';
 import { useBookRecommendations } from '@/hooks/use-book-recommendations';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { BookSearchService, type BookSearchResult } from '@/services/book-search.service';
+import { BookSearchService } from '@/services/book-search.service';
 import { BooksService } from '@/services/books.service';
-import type { BookRecommendation } from '@/services/recommendations/book-recommendations.service';
-import type { BookStatus } from '@/types';
+import type { BookRecommendation, BookSearchResult, BookStatus } from '@/types';
 import { logger } from '@/utils/logger';
 
 interface BookSearchModalProps {

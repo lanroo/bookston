@@ -1,20 +1,5 @@
 import { BooksService } from '@/services/books.service';
-import type { Book } from '@/types';
-
-export interface UserPreferences {
-  favoriteAuthors: string[];
-  favoriteGenres: string[];
-  averageRating: number;
-  totalBooksRead: number;
-  preferredStatus: string[];
-  readingPatterns: {
-    mostReadAuthors: Array<{ author: string; count: number }>;
-    averageRatingByAuthor: Array<{ author: string; rating: number }>;
-  };
-  userBooks: Book[];
-  highlyRatedBooks: Book[];
-  recentBooks: Book[];
-}
+import type { UserPreferences } from '@/types';
 
 export class UserPreferencesService {
   static async analyzePreferences(): Promise<UserPreferences> {

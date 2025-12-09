@@ -1,4 +1,5 @@
-import { BookRecommendationsService, type BookRecommendation } from '@/services/recommendations/book-recommendations.service';
+import { BookRecommendationsService } from '@/services/recommendations/book-recommendations.service';
+import type { BookRecommendation } from '@/types';
 import { useCallback, useEffect, useState } from 'react';
 
 export interface UseBookRecommendationsReturn {

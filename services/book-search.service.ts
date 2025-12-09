@@ -1,18 +1,4 @@
-
-
-export interface BookSearchResult {
-  id: string;
-  title: string;
-  authors: string[];
-  description?: string;
-  coverUrl?: string;
-  publishedDate?: string;
-  pageCount?: number;
-  categories?: string[];
-  language?: string;
-  source: 'google' | 'openlibrary';
-  isbn?: string;
-}
+import type { BookSearchResult } from '@/types';
 
 interface GoogleBookResponse {
   id: string;
