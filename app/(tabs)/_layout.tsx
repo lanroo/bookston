@@ -15,14 +15,14 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
       }}>
       {TAB_SCREENS.map((screen) => (
-        <Tabs.Screen
+      <Tabs.Screen
           key={screen.name}
           name={screen.name}
-          options={{
+        options={{
             title: screen.title,
             tabBarIcon: ({ color, size }) => screen.icon({ color, size }),
-          }}
-        />
+        }}
+      />
       ))}
     </Tabs>
   );

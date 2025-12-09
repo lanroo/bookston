@@ -207,9 +207,9 @@ export default function SettingsScreen() {
                 <View style={[styles.modalIconContainer, { backgroundColor: tintColor + '15' }]}>
                   <Ionicons name="color-palette" size={20} color={tintColor} />
                 </View>
-                <ThemedText type="subtitle" style={styles.modalTitle}>
-                  Escolher Tema
-                </ThemedText>
+              <ThemedText type="subtitle" style={styles.modalTitle}>
+                Escolher Tema
+              </ThemedText>
               </View>
               <TouchableOpacity 
                 style={styles.closeButton}
@@ -229,16 +229,16 @@ export default function SettingsScreen() {
                   : (isLight ? themeColors.text + '15' : themeColors.text + '20');
                 
                 return (
-                  <TouchableOpacity
-                    key={mode}
-                    style={[
-                      styles.themeOption,
+                <TouchableOpacity
+                  key={mode}
+                  style={[
+                    styles.themeOption,
                       {
                         backgroundColor: themeColors.background,
                         borderColor,
                         borderWidth: isSelected ? 2 : 1,
                       },
-                    ]}
+                  ]}
                     onPress={() => handleThemeChange(mode)}
                     activeOpacity={0.7}>
                     <View style={styles.themeOptionLeft}>
@@ -250,11 +250,11 @@ export default function SettingsScreen() {
                             : (isLight ? themeColors.text + '08' : themeColors.text + '10'),
                         }
                       ]}>
-                        <Ionicons
+                    <Ionicons
                           name={isLight ? 'sunny' : 'moon'}
                           size={28}
                           color={isSelected ? tintColor : themeColors.icon}
-                        />
+                    />
                       </View>
                       <View style={styles.themeOptionText}>
                         <ThemedText 
@@ -265,8 +265,8 @@ export default function SettingsScreen() {
                               fontWeight: isSelected ? '700' : '600',
                             }
                           ]}>
-                          {getThemeLabel(mode)}
-                        </ThemedText>
+                        {getThemeLabel(mode)}
+                      </ThemedText>
                         <ThemedText 
                           style={[
                             styles.themeOptionDescription,
@@ -276,15 +276,15 @@ export default function SettingsScreen() {
                             }
                           ]}>
                           {isLight ? 'Ideal para uso durante o dia' : 'Ideal para uso à noite'}
-                        </ThemedText>
+                      </ThemedText>
                       </View>
                     </View>
                     {isSelected && (
                       <View style={[styles.checkmarkContainer, { backgroundColor: tintColor }]}>
                         <Ionicons name="checkmark" size={16} color="#FFFFFF" />
                       </View>
-                    )}
-                  </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
                 );
               })}
             </View>
