@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   ActivityIndicator,
   Alert,
   Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -18,10 +18,10 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedTextInput } from '@/components/themed-text-input';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { BooksService } from '@/services/books.service';
 import { BookSearchService, type BookSearchResult } from '@/services/book-search.service';
-import { logger } from '@/utils/logger';
+import { BooksService } from '@/services/books.service';
 import type { BookStatus } from '@/types';
+import { logger } from '@/utils/logger';
 
 interface BookSearchModalProps {
   visible: boolean;
@@ -47,7 +47,6 @@ export function BookSearchModal({
   const [selectedBook, setSelectedBook] = useState<BookSearchResult | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<BookStatus>(defaultStatus);
 
-  // Debounce para busca
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -56,7 +55,7 @@ export function BookSearchModal({
 
     const timeoutId = setTimeout(() => {
       searchBooks(searchQuery);
-    }, 500); // Aguarda 500ms após parar de digitar
+    }, 500);
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
@@ -77,7 +76,6 @@ export function BookSearchModal({
   };
 
   const handleBookPress = (book: BookSearchResult) => {
-    // Fechar o teclado antes de mostrar o modal de seleção
     Keyboard.dismiss();
     setSelectedBook(book);
     setSelectedStatus(defaultStatus);
@@ -102,7 +100,7 @@ export function BookSearchModal({
       onBookAdded();
       handleClose();
     } catch (error) {
-      logger.error('Error adding book', error, { bookTitle: book.title });
+      logger.error('Error adding book', error, { bookTitle: selectedBook.title });
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       Alert.alert('Erro', `Não foi possível adicionar o livro: ${errorMessage}`);
     } finally {
