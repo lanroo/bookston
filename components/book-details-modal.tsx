@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -7,19 +6,22 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
-  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { InteractiveRating } from '@/components/interactive-rating';
+import { BookDetailsHeader } from '@/components/book-details/book-details-header';
+import { BookMetadataSection } from '@/components/book-details/book-metadata-section';
+import { BookNotesSection } from '@/components/book-details/book-notes-section';
+import { BookReviewsSection } from '@/components/book-details/book-reviews-section';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BooksService } from '@/services/books.service';
 import type { Book } from '@/types';
+import { logger } from '@/utils/logger';
+import { retry } from '@/utils/retry';
 
 interface BookDetailsModalProps {
   visible: boolean;
@@ -149,20 +151,6 @@ export function BookDetailsModal({ visible, book, onClose, onBookUpdated }: Book
     setAppReviews(mockReviews);
   };
 
-  const formatTimeAgo = (dateString: string): string => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
-    if (diffInSeconds < 60) return 'agora';
-    if (diffInSeconds < 3600) return `há ${Math.floor(diffInSeconds / 60)} min`;
-    if (diffInSeconds < 86400) return `há ${Math.floor(diffInSeconds / 3600)}h`;
-    if (diffInSeconds < 604800) return `há ${Math.floor(diffInSeconds / 86400)} dias`;
-    if (diffInSeconds < 2592000) return `há ${Math.floor(diffInSeconds / 604800)} semanas`;
-    if (diffInSeconds < 31536000) return `há ${Math.floor(diffInSeconds / 2592000)} meses`;
-    return `há ${Math.floor(diffInSeconds / 31536000)} anos`;
-  };
-
   const handleToggleLike = (reviewId: string) => {
     setAppReviews((prev) =>
       prev.map((review) =>
@@ -190,7 +178,7 @@ export function BookDetailsModal({ visible, book, onClose, onBookUpdated }: Book
         }
       }
     } catch (error) {
-      console.error('Error fetching book details:', error);
+      logger.error('Error fetching book details', error, { bookId: book.id });
     } finally {
       setLoadingDetails(false);
     }
@@ -201,11 +189,21 @@ export function BookDetailsModal({ visible, book, onClose, onBookUpdated }: Book
 
     setSavingNotes(true);
     try {
-      await BooksService.updateBook(book.id, { notes: notesValue });
+      await retry(
+        () => BooksService.updateBook(book.id, { notes: notesValue }),
+        {
+          maxAttempts: 3,
+          delay: 1000,
+          onRetry: (attempt) => {
+            logger.warn('Retrying save notes', { attempt, bookId: book.id });
+          },
+        }
+      );
       setEditingNotes(false);
-    } catch (error: any) {
-      console.error('Error saving notes:', error);
-      Alert.alert('Erro', 'Não foi possível salvar as notas.');
+    } catch (error) {
+      logger.error('Error saving notes', error, { bookId: book.id });
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      Alert.alert('Erro', `Não foi possível salvar as notas: ${errorMessage}`);
     } finally {
       setSavingNotes(false);
     }
@@ -216,13 +214,21 @@ export function BookDetailsModal({ visible, book, onClose, onBookUpdated }: Book
 
     setSavingRating(true);
     try {
-      await BooksService.updateBook(book.id, { rating });
+      await retry(
+        () => BooksService.updateBook(book.id, { rating }),
+        {
+          maxAttempts: 3,
+          delay: 1000,
+          onRetry: (attempt) => {
+            logger.warn('Retrying save rating', { attempt, bookId: book.id, rating });
+          },
+        }
+      );
       setUserRating(rating);
-      // Atualizar o livro localmente sem recarregar tudo
-      // Não chamar onBookUpdated aqui para evitar fechar o modal
-    } catch (error: any) {
-      console.error('Error saving rating:', error);
-      Alert.alert('Erro', 'Não foi possível salvar a avaliação.');
+    } catch (error) {
+      logger.error('Error saving rating', error, { bookId: book.id, rating });
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      Alert.alert('Erro', `Não foi possível salvar a avaliação: ${errorMessage}`);
     } finally {
       setSavingRating(false);
     }
@@ -237,27 +243,6 @@ export function BookDetailsModal({ visible, book, onClose, onBookUpdated }: Book
       return bookDetails.volumeInfo.imageLinks.medium.replace('http://', 'https://');
     }
     return bookDetails?.volumeInfo.imageLinks?.thumbnail?.replace('http://', 'https://');
-  };
-
-
-  const renderStars = (rating: number, interactive: boolean = false, size: number = 20) => {
-    return (
-      <ThemedView style={styles.starsContainer}>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <TouchableOpacity
-            key={star}
-            onPress={interactive && !savingRating ? () => handleSaveRating(star) : undefined}
-            disabled={!interactive || savingRating}
-            activeOpacity={interactive ? 0.7 : 1}>
-            <Ionicons
-              name={star <= rating ? 'star' : 'star-outline'}
-              size={size}
-              color={star <= rating ? '#FFD700' : textColor + '40'}
-            />
-          </TouchableOpacity>
-        ))}
-      </ThemedView>
-    );
   };
 
 
@@ -287,44 +272,16 @@ export function BookDetailsModal({ visible, book, onClose, onBookUpdated }: Book
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          <ThemedView style={styles.bookHeader}>
-            <ThemedView style={[styles.coverContainer, { backgroundColor: tintColor + '20' }]}>
-              {coverUrl ? (
-                <Image
-                  source={{ uri: coverUrl }}
-                  style={styles.cover}
-                  contentFit="cover"
-                  transition={200}
-                />
-              ) : (
-                <Ionicons name="book" size={64} color={tintColor} />
-              )}
-            </ThemedView>
-
-            <ThemedView style={styles.basicInfo}>
-              <ThemedText style={[styles.title, { color: textColor }]} numberOfLines={3}>
-                {book.title}
-              </ThemedText>
-              <ThemedText style={[styles.author, { color: textColor + '80' }]} numberOfLines={2}>
-                {book.author}
-              </ThemedText>
-
-              <ThemedView style={styles.ratingSection}>
-                <ThemedText style={[styles.ratingLabel, { color: textColor + '80' }]}>
-                  Sua avaliação:
-                </ThemedText>
-                <InteractiveRating
-                  rating={userRating || 0}
-                  onRatingChange={handleSaveRating}
-                  saving={savingRating}
-                  size={28}
-                />
-                {savingRating && (
-                  <ActivityIndicator size="small" color={tintColor} style={styles.savingIndicator} />
-                )}
-              </ThemedView>
-            </ThemedView>
-          </ThemedView>
+          <BookDetailsHeader
+            book={book}
+            coverUrl={getCoverUrl()}
+            userRating={userRating}
+            savingRating={savingRating}
+            onRatingChange={handleSaveRating}
+            backgroundColor={backgroundColor}
+            textColor={textColor}
+            tintColor={tintColor}
+          />
 
           {loadingDetails ? (
             <ThemedView style={styles.loadingContainer}>
@@ -335,109 +292,8 @@ export function BookDetailsModal({ visible, book, onClose, onBookUpdated }: Book
             </ThemedView>
           ) : (
             <>
-              <ThemedView style={styles.section}>
-                <ThemedText style={[styles.sectionTitle, { color: textColor }]}>
-                  Informações
-                </ThemedText>
-                <ThemedView style={styles.metadataGrid}>
-                  {bookDetails?.volumeInfo.publishedDate && (
-                    <ThemedView style={[styles.metadataCard, { borderLeftColor: '#FFB6C1' }]}>
-                      <ThemedView style={[styles.metadataIconContainer, { backgroundColor: '#FFB6C1' + '20' }]}>
-                        <Ionicons name="calendar" size={18} color="#FFB6C1" />
-                      </ThemedView>
-                      <View style={styles.metadataTextContainer}>
-                        <ThemedText style={[styles.metadataLabel, { color: textColor + '60' }]}>
-                          Publicado
-                        </ThemedText>
-                        <ThemedText style={[styles.metadataValue, { color: textColor }]}>
-                          {new Date(bookDetails.volumeInfo.publishedDate).getFullYear()}
-                        </ThemedText>
-                      </View>
-                    </ThemedView>
-                  )}
+              <BookMetadataSection bookDetails={bookDetails} textColor={textColor} />
 
-                  {bookDetails?.volumeInfo.pageCount && (
-                    <ThemedView style={[styles.metadataCard, { borderLeftColor: '#B19CD9' }]}>
-                      <ThemedView style={[styles.metadataIconContainer, { backgroundColor: '#B19CD9' + '20' }]}>
-                        <Ionicons name="document-text" size={18} color="#B19CD9" />
-                      </ThemedView>
-                      <View style={styles.metadataTextContainer}>
-                        <ThemedText style={[styles.metadataLabel, { color: textColor + '60' }]}>
-                          Páginas
-                        </ThemedText>
-                        <ThemedText style={[styles.metadataValue, { color: textColor }]}>
-                          {bookDetails.volumeInfo.pageCount}
-                        </ThemedText>
-                      </View>
-                    </ThemedView>
-                  )}
-
-                  {bookDetails?.volumeInfo.publisher && (
-                    <ThemedView style={[styles.metadataCard, { borderLeftColor: '#A8D5E2' }]}>
-                      <ThemedView style={[styles.metadataIconContainer, { backgroundColor: '#A8D5E2' + '20' }]}>
-                        <Ionicons name="business" size={18} color="#A8D5E2" />
-                      </ThemedView>
-                      <View style={styles.metadataTextContainer}>
-                        <ThemedText style={[styles.metadataLabel, { color: textColor + '60' }]}>
-                          Editora
-                        </ThemedText>
-                        <ThemedText style={[styles.metadataValue, { color: textColor }]} numberOfLines={1}>
-                          {bookDetails.volumeInfo.publisher}
-                        </ThemedText>
-                      </View>
-                    </ThemedView>
-                  )}
-
-                  {bookDetails?.volumeInfo.language && (
-                    <ThemedView style={[styles.metadataCard, { borderLeftColor: '#B5E5CF' }]}>
-                      <ThemedView style={[styles.metadataIconContainer, { backgroundColor: '#B5E5CF' + '20' }]}>
-                        <Ionicons name="language" size={18} color="#B5E5CF" />
-                      </ThemedView>
-                      <View style={styles.metadataTextContainer}>
-                        <ThemedText style={[styles.metadataLabel, { color: textColor + '60' }]}>
-                          Idioma
-                        </ThemedText>
-                        <ThemedText style={[styles.metadataValue, { color: textColor }]}>
-                          {bookDetails.volumeInfo.language.toUpperCase()}
-                        </ThemedText>
-                      </View>
-                    </ThemedView>
-                  )}
-                </ThemedView>
-
-                {/* Categories */}
-                {bookDetails?.volumeInfo.categories && bookDetails.volumeInfo.categories.length > 0 && (
-                  <ThemedView style={styles.categoriesSection}>
-                    <ThemedText style={[styles.categoriesTitle, { color: textColor }]}>
-                      Categorias
-                    </ThemedText>
-                    <ThemedView style={styles.categoriesContainer}>
-                      {bookDetails.volumeInfo.categories.slice(0, 6).map((category, index) => {
-                        const colors = [
-                          { bg: '#C8A2C8', text: '#fff' },
-                          { bg: '#B19CD9', text: '#fff' },
-                          { bg: '#B19CD9', text: '#fff' },
-                          { bg: '#F38181', text: '#fff' },
-                          { bg: '#AA96DA', text: '#fff' },
-                          { bg: '#FCBAD3', text: '#2C3E50' },
-                        ];
-                        const color = colors[index % colors.length];
-                        return (
-                          <ThemedView
-                            key={index}
-                            style={[styles.categoryTag, { backgroundColor: color.bg }]}>
-                            <ThemedText style={[styles.categoryText, { color: color.text }]}>
-                              {category}
-                            </ThemedText>
-                          </ThemedView>
-                        );
-                      })}
-                    </ThemedView>
-                  </ThemedView>
-                )}
-              </ThemedView>
-
-              {/* Description/Synopsis */}
               {description && (
                 <ThemedView style={styles.section}>
                   <ThemedText style={[styles.sectionTitle, { color: textColor }]}>
@@ -449,187 +305,30 @@ export function BookDetailsModal({ visible, book, onClose, onBookUpdated }: Book
                 </ThemedView>
               )}
 
-              {/* Personal Notes */}
-              <ThemedView style={styles.section}>
-                <ThemedView style={styles.sectionHeader}>
-                  <ThemedText style={[styles.sectionTitle, { color: textColor }]}>
-                    Suas Notas
-                  </ThemedText>
-                  {!editingNotes && (
-                    <TouchableOpacity
-                      onPress={() => setEditingNotes(true)}
-                      style={styles.editButtonSmall}>
-                      <Ionicons name="create-outline" size={16} color={tintColor} />
-                    </TouchableOpacity>
-                  )}
-                </ThemedView>
+              <BookNotesSection
+                notes={book.notes || ''}
+                editingNotes={editingNotes}
+                savingNotes={savingNotes}
+                notesValue={notesValue}
+                onNotesValueChange={setNotesValue}
+                onStartEdit={() => setEditingNotes(true)}
+                onCancelEdit={() => {
+                  setEditingNotes(false);
+                  setNotesValue(book.notes || '');
+                }}
+                onSave={handleSaveNotes}
+                backgroundColor={backgroundColor}
+                textColor={textColor}
+                tintColor={tintColor}
+                isDark={isDark}
+              />
 
-                {editingNotes ? (
-                  <ThemedView>
-                    <TextInput
-                      style={[
-                        styles.notesInputCompact,
-                        {
-                          color: textColor,
-                          backgroundColor: backgroundColor,
-                          borderColor: textColor + '20',
-                        },
-                      ]}
-                      value={notesValue}
-                      onChangeText={setNotesValue}
-                      placeholder="Adicione suas notas..."
-                      placeholderTextColor={textColor + '60'}
-                      multiline
-                      textAlignVertical="top"
-                      autoFocus
-                    />
-                    <ThemedView style={styles.editActionsCompact}>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setEditingNotes(false);
-                          setNotesValue(book.notes || '');
-                        }}
-                        style={styles.cancelButtonCompact}>
-                        <ThemedText style={[styles.cancelButtonText, { color: textColor + '80' }]}>
-                          Cancelar
-                        </ThemedText>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={handleSaveNotes}
-                        disabled={savingNotes}
-                        style={[styles.saveButtonCompact, { backgroundColor: tintColor }]}>
-                        {savingNotes ? (
-                          <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                          <ThemedText style={[styles.saveButtonText, { color: '#fff' }]}>
-                            Salvar
-                          </ThemedText>
-                        )}
-                      </TouchableOpacity>
-                    </ThemedView>
-                  </ThemedView>
-                ) : (
-                  <TouchableOpacity
-                    onPress={() => setEditingNotes(true)}
-                    activeOpacity={0.7}
-                    style={[styles.notesContainer, { backgroundColor: isDark ? tintColor + '10' : tintColor + '08' }]}>
-                    <ThemedText style={[styles.notesTextCompact, { color: textColor + '90' }]} numberOfLines={3}>
-                      {book.notes || 'Toque para adicionar notas sobre este livro...'}
-                    </ThemedText>
-                  </TouchableOpacity>
-                )}
-              </ThemedView>
-
-              {/* Reviews Section */}
-              <ThemedView style={styles.section}>
-                <ThemedView style={styles.reviewsHeader}>
-                  <ThemedView style={styles.reviewsHeaderTop}>
-                    <ThemedText style={[styles.sectionTitle, { color: textColor }]}>
-                      Avaliações e Resenhas
-                    </ThemedText>
-                    {appReviews.length > 0 && (
-                      <ThemedView style={styles.reviewsStats}>
-                        <ThemedView style={styles.reviewsStatsItem}>
-                          <Ionicons name="star" size={18} color="#FFD700" />
-                          <ThemedText style={[styles.reviewsStatsText, { color: textColor }]}>
-                            {(
-                              appReviews.reduce((sum, r) => sum + r.rating, 0) / appReviews.length
-                            ).toFixed(1)}
-                          </ThemedText>
-                        </ThemedView>
-                        <ThemedText style={[styles.reviewsStatsText, { color: textColor + '70' }]}>
-                          • {appReviews.length} {appReviews.length === 1 ? 'avaliação' : 'avaliações'}
-                        </ThemedText>
-                      </ThemedView>
-                    )}
-                  </ThemedView>
-                </ThemedView>
-
-                {appReviews.length === 0 ? (
-                  <ThemedView style={styles.emptyReviewsContainer}>
-                    <Ionicons name="chatbubbles-outline" size={48} color={textColor + '40'} />
-                    <ThemedText style={[styles.emptyReviewsText, { color: textColor + '80' }]}>
-                      Ainda não há avaliações
-                    </ThemedText>
-                    <ThemedText style={[styles.emptyReviewsSubtext, { color: textColor + '60' }]}>
-                      Seja o primeiro a avaliar este livro!
-                    </ThemedText>
-                  </ThemedView>
-                ) : (
-                  <ThemedView style={styles.reviewsContainer}>
-                    {appReviews.map((review) => (
-                      <ThemedView key={review.id} style={styles.reviewCard}>
-                        <ThemedView style={styles.reviewHeader}>
-                          <ThemedView style={styles.reviewAuthorInfo}>
-                            <ThemedView
-                              style={[
-                                styles.reviewAvatar,
-                                { backgroundColor: review.avatarColor + '30' },
-                              ]}>
-                              <ThemedText
-                                style={[styles.reviewAvatarText, { color: review.avatarColor }]}>
-                                {review.userInitials}
-                              </ThemedText>
-                            </ThemedView>
-                            <ThemedView style={styles.reviewAuthorDetails}>
-                              <ThemedText style={[styles.reviewAuthorName, { color: textColor }]}>
-                                {review.userName}
-                              </ThemedText>
-                              <ThemedView style={styles.reviewMeta}>
-                                {renderStars(review.rating, false, 14)}
-                                <ThemedText style={[styles.reviewDate, { color: textColor + '60' }]}>
-                                  • {formatTimeAgo(review.createdAt)}
-                                </ThemedText>
-                              </ThemedView>
-                            </ThemedView>
-                          </ThemedView>
-                          <ThemedView style={styles.reviewActions}>
-                            <TouchableOpacity
-                              style={styles.reviewActionButton}
-                              onPress={() => handleToggleLike(review.id)}>
-                              <Ionicons
-                                name={review.liked ? 'heart' : 'heart-outline'}
-                                size={18}
-                                color={review.liked ? '#FF6B6B' : textColor + '60'}
-                              />
-                              <ThemedText
-                                style={[
-                                  styles.reviewActionText,
-                                  { color: review.liked ? '#FF6B6B' : textColor + '60' },
-                                ]}>
-                                {review.likes}
-                              </ThemedText>
-                            </TouchableOpacity>
-                          </ThemedView>
-                        </ThemedView>
-                        <ThemedText style={[styles.reviewText, { color: textColor + '90' }]}>
-                          {review.review}
-                        </ThemedText>
-                        {review.tags.length > 0 && (
-                          <ThemedView style={styles.reviewTags}>
-                            {review.tags.map((tag, index) => (
-                              <ThemedView
-                                key={index}
-                                style={[styles.reviewTag, { backgroundColor: tintColor + '20' }]}>
-                                <ThemedText style={[styles.reviewTagText, { color: tintColor }]}>
-                                  {tag}
-                                </ThemedText>
-                              </ThemedView>
-                            ))}
-                          </ThemedView>
-                        )}
-                      </ThemedView>
-                    ))}
-
-                    <TouchableOpacity style={styles.viewMoreButton}>
-                      <ThemedText style={[styles.viewMoreText, { color: tintColor }]}>
-                        Ver mais avaliações
-                      </ThemedText>
-                      <Ionicons name="chevron-down" size={18} color={tintColor} />
-                    </TouchableOpacity>
-                  </ThemedView>
-                )}
-              </ThemedView>
+              <BookReviewsSection
+                reviews={appReviews}
+                onToggleLike={handleToggleLike}
+                textColor={textColor}
+                tintColor={tintColor}
+              />
             </>
           )}
         </ScrollView>

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useRef, useState } from 'react';
-import { Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Animated, GestureResponderEvent, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 
@@ -11,7 +11,16 @@ interface InteractiveRatingProps {
   size?: number;
 }
 
-export function InteractiveRating({
+/**
+ * InteractiveRating Component
+ * 
+ * An interactive star rating component with touch gestures.
+ * Allows users to rate by tapping or dragging across stars.
+ * 
+ * @param props - InteractiveRating component props
+ * @returns Interactive rating component
+ */
+export const InteractiveRating = React.memo(function InteractiveRating({
   rating,
   onRatingChange,
   saving = false,
@@ -57,7 +66,7 @@ export function InteractiveRating({
     setHoveredRating(newRating);
   };
 
-  const handleTouchStart = (evt: any) => {
+  const handleTouchStart = (evt: GestureResponderEvent) => {
     if (saving) return;
 
     setIsRatingActive(true);
@@ -78,7 +87,7 @@ export function InteractiveRating({
     }
   };
 
-  const handleTouchMove = (evt: any) => {
+  const handleTouchMove = (evt: GestureResponderEvent) => {
     if (!isRatingActive || saving) return;
     const x = evt.nativeEvent.pageX;
     const relativeX = x - containerXRef.current;
@@ -152,7 +161,7 @@ export function InteractiveRating({
       </Animated.View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
