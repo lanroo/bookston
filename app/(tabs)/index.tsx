@@ -1,14 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FeedSection, GenreButtons, type FeedPost as FeedPostType, type Genre } from '@/components/home';
+import { PostOptionsSheet } from '@/components/social';
 import { useTabBarPadding } from '@/components/tab-bar';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { PointsService } from '@/services/points.service';
+import { PostsService } from '@/services/posts.service';
+import type { Post } from '@/types';
+import { logger } from '@/utils/logger';
 
 export default function HomeScreen() {
   const backgroundColor = useThemeColor({}, 'background');
@@ -16,60 +23,72 @@ export default function HomeScreen() {
   const tintColor = useThemeColor({}, 'tint');
   const { user } = useAuth();
   const tabBarPadding = useTabBarPadding();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const [feedPosts, setFeedPosts] = useState<FeedPostType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedGenreId, setSelectedGenreId] = useState<string | undefined>();
+  const [pointsRefreshKey, setPointsRefreshKey] = useState(0);
+  const [userPoints, setUserPoints] = useState<{ totalPoints: number; level: number }>({ totalPoints: 0, level: 1 });
+  const [optionsSheetVisible, setOptionsSheetVisible] = useState(false);
+  const [selectedPostForOptions, setSelectedPostForOptions] = useState<Post | null>(null);
 
   const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuário';
 
-  // TODO: Implementar carregamento de posts do feed
+  const mapPostToFeedPost = (post: Post): FeedPostType => {
+    return {
+      id: post.id,
+      userId: post.userId,
+      userName: post.userName,
+      userUsername: post.userUsername,
+      userAvatar: post.userAvatar,
+      bookTitle: post.bookTitle,
+      bookAuthor: post.bookAuthor,
+      bookCover: post.bookCoverUrl,
+      content: post.content,
+      rating: post.rating,
+      createdAt: post.createdAt,
+      likes: post.likesCount,
+      comments: post.commentsCount,
+      isLiked: post.isLiked,
+    };
+  };
+
   const loadFeedPosts = useCallback(async () => {
     if (!user) return;
 
     setIsLoading(true);
     try {
-      // Mock data por enquanto - será substituído pela API real
-      const mockPosts: FeedPostType[] = [
-        {
-          id: '1',
-          userId: 'user1',
-          userName: 'Maria Silva',
-          bookTitle: 'O Hobbit',
-          bookAuthor: 'J.R.R. Tolkien',
-          content: 'Acabei de terminar e estou apaixonada! A jornada de Bilbo é incrível. Recomendo muito para quem gosta de fantasia.',
-          rating: 5,
-          createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
-          likes: 12,
-          comments: 3,
-          isLiked: false,
-        },
-        {
-          id: '2',
-          userId: 'user2',
-          userName: 'João Santos',
-          bookTitle: '1984',
-          bookAuthor: 'George Orwell',
-          content: 'Livro perturbador mas necessário. A distopia de Orwell continua muito relevante nos dias de hoje.',
-          rating: 5,
-          createdAt: new Date(Date.now() - 5 * 3600000).toISOString(),
-          likes: 8,
-          comments: 2,
-          isLiked: true,
-        },
-      ];
-      setFeedPosts(mockPosts);
-    } catch (error: any) {
-      console.error('Error loading feed posts:', error);
+      const posts = await PostsService.getPosts(20, 0);
+      const mappedPosts = posts.map(mapPostToFeedPost);
+      setFeedPosts(mappedPosts);
+    } catch (error) {
+      logger.error('Error loading feed posts', error);
     } finally {
       setIsLoading(false);
+    }
+  }, [user]);
+
+  const loadUserPoints = useCallback(async () => {
+    if (!user) return;
+    try {
+      const points = await PointsService.getUserPoints(user.id);
+      if (points) {
+        setUserPoints({ totalPoints: points.totalPoints, level: points.level });
+      }
+    } catch (error) {
+      logger.error('Error loading user points', error);
     }
   }, [user]);
 
   useFocusEffect(
     useCallback(() => {
       loadFeedPosts();
-    }, [loadFeedPosts])
+      loadUserPoints();
+
+      setPointsRefreshKey((prev: number) => prev + 1);
+    }, [loadFeedPosts, loadUserPoints])
   );
 
   const handleGenrePress = (genre: Genre) => {
@@ -84,37 +103,127 @@ export default function HomeScreen() {
     console.log('Post pressed:', post);
   };
 
-  const handleLike = (post: FeedPostType) => {
-    // TODO: Implementar like/unlike
-    setFeedPosts((prev) =>
-      prev.map((p) =>
-        p.id === post.id
-          ? { ...p, isLiked: !p.isLiked, likes: p.isLiked ? p.likes - 1 : p.likes + 1 }
-          : p
-      )
-    );
+  const handleLike = async (post: FeedPostType) => {
+    if (!user) return;
+
+    try {
+      const result = await PostsService.toggleLike(post.id);
+
+      if (result.isLiked) {
+        await PointsService.awardPoints(user.id, 'post_liked', post.id);
+        setPointsRefreshKey((prev: number) => prev + 1);
+        loadUserPoints();
+      }
+
+      setFeedPosts((prev) =>
+        prev.map((p) =>
+          p.id === post.id
+            ? { ...p, isLiked: result.isLiked, likes: result.likesCount }
+            : p
+        )
+      );
+    } catch (error) {
+      logger.error('Error toggling like', error);
+    }
   };
 
   const handleComment = (post: FeedPostType) => {
-    // TODO: Implementar navegação para comentários
-    console.log('Comment pressed:', post);
+    loadFeedPosts();
+  };
+
+  const handlePostOptions = (post: FeedPostType) => {
+    const postForOptions: Post = {
+      id: post.id,
+      userId: post.userId,
+      userName: post.userName,
+      userAvatar: post.userAvatar,
+      bookId: '',  
+      bookTitle: post.bookTitle,
+      bookAuthor: post.bookAuthor,
+      bookCoverUrl: post.bookCover,
+      bookStatus: 'read',  
+      content: post.content,
+      rating: post.rating,
+      hasSpoiler: false,  
+      likesCount: post.likes,
+      commentsCount: post.comments,
+      isLiked: post.isLiked || false,
+      createdAt: post.createdAt,
+      updatedAt: post.createdAt,
+    };
+    setSelectedPostForOptions(postForOptions);
+    setOptionsSheetVisible(true);
+  };
+
+  const handleEditPost = (post: Post) => {
+    router.push({
+      pathname: '/create-post',
+      params: { postId: post.id },
+    });
+  };
+
+  const handleDeletePost = async (post: Post) => {
+    if (!user) return;
+
+    try {
+      await PostsService.deletePost(post.id);
+      setFeedPosts((prev) => prev.filter((p) => p.id !== post.id));
+      loadFeedPosts();
+    } catch (error) {
+      logger.error('Error deleting post', error);
+      Alert.alert('Erro', 'Não foi possível excluir a resenha. Tente novamente.');
+    }
   };
 
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
-      <View style={styles.header}>
-        <View>
-          <ThemedText style={styles.greeting}>Olá,</ThemedText>
-          <ThemedText type="title" style={styles.userName}>
-            {userName}
-          </ThemedText>
+      <View style={[styles.header, { backgroundColor }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerTop}>
+            <View style={styles.headerInfo}>
+              <ThemedText style={styles.greeting}>Olá,</ThemedText>
+              <ThemedText type="title" style={styles.userName}>
+                {userName}
+              </ThemedText>
+            </View>
+            <TouchableOpacity
+              style={[styles.avatarContainer, { backgroundColor: tintColor + '20' }]}
+              onPress={() => router.push('/profile')}
+              activeOpacity={0.7}>
+              <Ionicons name="person" size={22} color={tintColor} />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={styles.pointsCard}
+            onPress={() => router.push('/profile')}
+            activeOpacity={0.8}>
+            <LinearGradient
+              colors={isDark ? [tintColor + '20', tintColor + '10'] : [tintColor + '15', tintColor + '08']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.pointsGradient}>
+              <View style={styles.pointsContent}>
+                <View style={styles.pointsLeft}>
+                  <View style={[styles.trophyIcon, { backgroundColor: tintColor + '25' }]}>
+                    <Ionicons name="trophy" size={20} color={tintColor} />
+                  </View>
+                  <View style={styles.pointsTextContainer}>
+                    <ThemedText style={[styles.pointsLabel, { color: textColor, opacity: 0.7 }]}>
+                      Seus Pontos
+                    </ThemedText>
+                    <ThemedText style={[styles.pointsValue, { color: textColor }]}>
+                      {userPoints.totalPoints.toLocaleString()} pts
+                    </ThemedText>
+                  </View>
+                </View>
+                <View style={[styles.levelBadge, { backgroundColor: tintColor }]}>
+                  <ThemedText style={styles.levelText}>Nv. {userPoints.level}</ThemedText>
+                </View>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={[styles.avatarContainer, { backgroundColor: tintColor + '20' }]}
-          onPress={() => router.push('/profile')}>
-          <Ionicons name="person" size={28} color={tintColor} />
-        </TouchableOpacity>
       </View>
 
       <View style={styles.genresSection}>
@@ -129,7 +238,7 @@ export default function HomeScreen() {
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             Feed
           </ThemedText>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/books?add=true')}>
+          <TouchableOpacity onPress={() => router.push('/create-post')}>
             <Ionicons name="add-circle" size={28} color={tintColor} />
           </TouchableOpacity>
         </View>
@@ -139,13 +248,26 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}>
           <FeedSection
             posts={feedPosts}
+            currentUserId={user?.id}
             onPostPress={handlePostPress}
             onLike={handleLike}
             onComment={handleComment}
+            onOptions={handlePostOptions}
             isLoading={isLoading}
           />
         </ScrollView>
       </View>
+
+      <PostOptionsSheet
+        visible={optionsSheetVisible}
+        post={selectedPostForOptions}
+        onClose={() => {
+          setOptionsSheetVisible(false);
+          setSelectedPostForOptions(null);
+        }}
+        onEdit={handleEditPost}
+        onDelete={handleDeletePost}
+      />
     </SafeAreaView>
   );
 }
@@ -155,21 +277,35 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingTop: 12,
+    paddingBottom: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  headerContent: {
+    gap: 16,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerInfo: {
+    flex: 1,
+    gap: 2,
   },
   greeting: {
-    fontSize: 16,
-    opacity: 0.7,
-    marginBottom: 4,
+    fontSize: 14,
+    opacity: 0.6,
+    marginBottom: 2,
+    fontWeight: '500',
+    letterSpacing: -0.2,
   },
   userName: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
+    letterSpacing: -0.5,
   },
   avatarContainer: {
     width: 48,
@@ -177,6 +313,69 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  pointsCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  pointsGradient: {
+    padding: 16,
+    borderRadius: 16,
+  },
+  pointsContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pointsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  trophyIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pointsTextContainer: {
+    flex: 1,
+    gap: 4,
+  },
+  pointsLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: -0.2,
+  },
+  pointsValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    marginTop: 2,
+  },
+  levelBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    minWidth: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  levelText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   genresSection: {
     marginBottom: 24,

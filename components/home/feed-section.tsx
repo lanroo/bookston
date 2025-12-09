@@ -8,17 +8,21 @@ import { FeedPost, type FeedPost as FeedPostType } from './feed-post';
 
 interface FeedSectionProps {
   posts: FeedPostType[];
+  currentUserId?: string;
   onPostPress?: (post: FeedPostType) => void;
   onLike?: (post: FeedPostType) => void;
   onComment?: (post: FeedPostType) => void;
+  onOptions?: (post: FeedPostType) => void;
   isLoading?: boolean;
 }
 
 export function FeedSection({
   posts,
+  currentUserId,
   onPostPress,
   onLike,
   onComment,
+  onOptions,
   isLoading,
 }: FeedSectionProps) {
   const textColor = useThemeColor({}, 'text');
@@ -39,9 +43,11 @@ export function FeedSection({
         <FeedPost
           key={post.id}
           post={post}
+          currentUserId={currentUserId}
           onPress={onPostPress}
           onLike={onLike}
           onComment={onComment}
+          onOptions={onOptions}
         />
       ))}
       {isLoading && (

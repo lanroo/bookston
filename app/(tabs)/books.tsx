@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BookDetailsModal } from '@/components/book-details/book-details-modal';
@@ -17,6 +17,7 @@ import { TabSelector, type TabOption } from '@/components/tab-selector';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/contexts/AuthContext';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BooksService } from '@/services/books.service';
 import type { Book, BookStatus } from '@/types';
@@ -25,6 +26,8 @@ export default function BooksScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const params = useLocalSearchParams();
   const { user } = useAuth();
   
@@ -42,6 +45,7 @@ export default function BooksScreen() {
   const [isDragging, setIsDragging] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const tabBarPadding = useTabBarPadding();
+  const tabBarHeight = Platform.OS === 'ios' ? 88 : 64;
 
   const filteredBooks = activeTab === 'all' 
     ? books 
@@ -207,18 +211,20 @@ export default function BooksScreen() {
 
   const rightAction = selectionMode ? (
     <TouchableOpacity
-      style={[styles.cancelButtonHeader, { backgroundColor: textColor + '20' }]}
+      style={[styles.cancelButtonHeader, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)' }]}
       onPress={() => {
         setSelectionMode(false);
         setSelectedBookIds(new Set());
-      }}>
+      }}
+      activeOpacity={0.7}>
       <ThemedText style={[styles.cancelButtonText, { color: textColor }]}>Cancelar</ThemedText>
     </TouchableOpacity>
   ) : (
     <TouchableOpacity
-      style={[styles.editButton, { backgroundColor: tintColor + '20' }]}
-      onPress={() => setSelectionMode(true)}>
-      <Ionicons name="create-outline" size={20} color={tintColor} />
+      style={[styles.editButton, { backgroundColor: tintColor + '15' }]}
+      onPress={() => setSelectionMode(true)}
+      activeOpacity={0.7}>
+      <Ionicons name="checkmark-circle-outline" size={22} color={tintColor} />
     </TouchableOpacity>
   );
 
@@ -241,8 +247,7 @@ export default function BooksScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: tabBarPadding },
-          selectionMode && styles.scrollContentWithSelectionBar
+          { paddingBottom: selectionMode ? tabBarPadding + 100 : tabBarPadding },
         ]}
         showsVerticalScrollIndicator={false}
         scrollEnabled={!isDragging}
@@ -315,34 +320,49 @@ export default function BooksScreen() {
       </ScrollView>
 
       {selectionMode && (
-        <SafeAreaView edges={['bottom']} style={styles.selectionBarContainer}>
-          <ThemedView style={[styles.selectionBar, { backgroundColor, borderTopColor: textColor + '20' }]}>
-            <View style={styles.selectionBarTop}>
-              <ThemedText style={[styles.selectionCount, { color: textColor }]}>
-                {selectedBookIds.size} {selectedBookIds.size === 1 ? 'selecionado' : 'selecionados'}
+        <SafeAreaView edges={[]} style={[styles.selectionBarContainer, { bottom: tabBarHeight }]}>
+          <ThemedView style={[styles.selectionBar, { backgroundColor, borderTopColor: textColor + '15' }]}>
+            <View style={styles.selectionBarHeader}>
+              <View style={[styles.selectionBadge, { backgroundColor: tintColor + '15' }]}>
+                <ThemedText style={[styles.selectionCount, { color: tintColor }]}>
+                  {selectedBookIds.size}
+                </ThemedText>
+              </View>
+              <ThemedText style={[styles.selectionLabel, { color: textColor }]}>
+                {selectedBookIds.size === 1 ? 'selecionado' : 'selecionados'}
               </ThemedText>
             </View>
             
             <View style={styles.selectionBarActions}>
               <TouchableOpacity
-                style={[styles.selectionButton, { backgroundColor: tintColor + '20', borderColor: tintColor + '40' }]}
-                onPress={handleSelectAll}>
+                style={[
+                  styles.actionButton,
+                  { 
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+                    borderColor: textColor + '15',
+                  }
+                ]}
+                onPress={handleSelectAll}
+                activeOpacity={0.7}>
                 <Ionicons 
                   name={selectedBookIds.size === filteredBooks.length ? 'checkbox' : 'square-outline'} 
-                  size={18} 
+                  size={20} 
                   color={tintColor} 
                 />
-                <ThemedText style={[styles.selectionButtonText, { color: tintColor }]} numberOfLines={1}>
-                  {selectedBookIds.size === filteredBooks.length ? 'Desmarcar' : 'Selecionar Todos'}
+                <ThemedText style={[styles.actionButtonText, { color: textColor }]} numberOfLines={1}>
+                  {selectedBookIds.size === filteredBooks.length ? 'Desmarcar' : 'Todos'}
                 </ThemedText>
               </TouchableOpacity>
               
               {selectedBookIds.size > 0 && (
                 <TouchableOpacity
                   style={[styles.deleteButton, { backgroundColor: '#ff3b30' }]}
-                  onPress={handleDeleteSelected}>
-                  <Ionicons name="trash-outline" size={18} color="#fff" />
-                  <ThemedText style={styles.deleteButtonText} numberOfLines={1}>Deletar</ThemedText>
+                  onPress={handleDeleteSelected}
+                  activeOpacity={0.8}>
+                  <Ionicons name="trash-outline" size={20} color="#fff" />
+                  <ThemedText style={styles.deleteButtonText} numberOfLines={1}>
+                    Deletar
+                  </ThemedText>
                 </TouchableOpacity>
               )}
             </View>
@@ -391,60 +411,71 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
   },
-  scrollContentWithSelectionBar: {
-    paddingBottom: 100,
-  },
   booksList: {
     gap: 12,
   },
   selectionBarContainer: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
+    zIndex: 1000,
+    elevation: 1000,
   },
   selectionBar: {
-    borderTopWidth: 1,
-    paddingTop: 12,
-    paddingBottom: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 16,
+    paddingBottom: 16,
     paddingHorizontal: 20,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: -2,
+      height: -4,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 8,
+    shadowRadius: 8,
+    elevation: 10,
   },
-  selectionBarTop: {
-    marginBottom: 10,
+  selectionBarHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    gap: 10,
+  },
+  selectionBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   selectionCount: {
-    fontSize: 14,
-    fontWeight: '600',
-    opacity: 0.8,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  selectionLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    opacity: 0.7,
   },
   selectionBarActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    justifyContent: 'space-between',
+    gap: 10,
   },
-  selectionButton: {
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     gap: 8,
     flex: 1,
-    borderWidth: 1,
-    minHeight: 44,
+    borderWidth: StyleSheet.hairlineWidth,
+    minHeight: 48,
   },
-  selectionButtonText: {
+  actionButtonText: {
     fontSize: 15,
     fontWeight: '600',
     flexShrink: 1,
@@ -453,23 +484,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 10,
-    gap: 6,
-    minWidth: 100,
-    maxWidth: 120,
-    minHeight: 44,
+    borderRadius: 12,
+    gap: 8,
+    minWidth: 110,
+    minHeight: 48,
+    shadowColor: '#ff3b30',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   deleteButtonText: {
     color: '#fff',
     fontSize: 15,
     fontWeight: '600',
+    letterSpacing: 0.2,
   },
   cancelButtonHeader: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   cancelButtonText: {
     fontSize: 15,
