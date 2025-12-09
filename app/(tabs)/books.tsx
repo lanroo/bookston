@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,7 +9,7 @@ import { BookOptionsSheet } from '@/components/book-options-sheet';
 import { BookSearchModal } from '@/components/book-search-modal';
 import { EmptyState } from '@/components/empty-state';
 import { LoadingScreen } from '@/components/loading-screen';
-import { ReorderBooksModal } from '@/components/reorder-books-modal';
+import { ReorderableBookList } from '@/components/reorder';
 import { ScreenHeader } from '@/components/screen-header';
 import { SwipeableBookCard } from '@/components/swipeable-book-card';
 import { TabSelector, type TabOption } from '@/components/tab-selector';
@@ -35,10 +35,15 @@ export default function BooksScreen() {
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [selectedBookForDetails, setSelectedBookForDetails] = useState<Book | null>(null);
-  const [reorderModalVisible, setReorderModalVisible] = useState(false);
 
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedBookIds, setSelectedBookIds] = useState<Set<string>>(new Set());
+  const [isDragging, setIsDragging] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  const filteredBooks = activeTab === 'all' 
+    ? books 
+    : books.filter((book) => book.status === activeTab);
 
   const loadBooks = useCallback(async () => {
     if (!user) return;
@@ -190,22 +195,6 @@ export default function BooksScreen() {
     { id: 'rereading', label: 'Relendo', icon: 'refresh-outline' },
   ];
 
-  const filteredBooks = activeTab === 'all' 
-    ? books 
-    : books.filter((book) => book.status === activeTab);
-
-  const handleSaveReorder = useCallback(
-    async (reorderedBooks: Book[]) => { 
-      const bookOrders = reorderedBooks.map((book, idx) => ({
-        bookId: book.id,
-        displayOrder: idx,
-      }));
-
-      await BooksService.updateBooksOrder(bookOrders);
-      await loadBooks();
-    },
-    [loadBooks]
-  );
   
   useEffect(() => {
     if (params.add === 'true') {
@@ -246,12 +235,16 @@ export default function BooksScreen() {
       <TabSelector tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
           selectionMode && styles.scrollContentWithSelectionBar
         ]}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={!isDragging}
+        nestedScrollEnabled={true}
+        scrollEventThrottle={16}>
         {filteredBooks.length === 0 ? (
           <EmptyState
             icon="library-outline"
@@ -273,7 +266,7 @@ export default function BooksScreen() {
               onPress: handleAddBook,
             }}
           />
-        ) : (
+        ) : selectionMode ? (
           <ThemedView style={styles.booksList}>
             {filteredBooks.map((book) => {
               const isSelected = selectedBookIds.has(book.id);
@@ -293,14 +286,28 @@ export default function BooksScreen() {
                   }}
                   onLongPress={() => handleBookLongPress(book)}
                   onOptionsPress={() => handleBookOptions(book)}
-                  onReorderPress={() => {
-                    setReorderModalVisible(true);
-                  }}
+                  onReorderPress={() => {}}
                   dragHandleProps={undefined}
                 />
               );
             })}
           </ThemedView>
+        ) : (
+          <ReorderableBookList
+            books={filteredBooks}
+            scrollViewRef={scrollViewRef}
+            selectedBookIds={selectedBookIds}
+            selectionMode={selectionMode}
+            backgroundColor={backgroundColor}
+            textColor={textColor}
+            tintColor={tintColor}
+            onBookPress={handleBookPress}
+            onBookLongPress={handleBookLongPress}
+            onBookOptions={handleBookOptions}
+            style={styles.booksList}
+            enabled={!selectionMode}
+            onDraggingChange={setIsDragging}
+          />
         )}
       </ScrollView>
 
@@ -366,13 +373,6 @@ export default function BooksScreen() {
           setSelectedBookForDetails(null);
         }}
         onBookUpdated={loadBooks}
-      />
-
-      <ReorderBooksModal
-        visible={reorderModalVisible}
-        books={filteredBooks}
-        onClose={() => setReorderModalVisible(false)}
-        onSave={handleSaveReorder}
       />
     </SafeAreaView>
   );
