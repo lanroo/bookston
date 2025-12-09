@@ -1,20 +1,9 @@
-/**
- * Notes Service
- * Handles all notes-related business logic
- * Following Single Responsibility Principle (SRP)
- * 
- * SECURITY: All methods automatically filter by the authenticated user's ID.
- * Even if userId is passed, RLS policies ensure users can only access their own data.
- */
-
 import { supabase } from '@/lib/supabase';
-import type { Folder, Note } from '@/types';
+import type { DatabaseFolder, DatabaseNote, Folder, Note } from '@/types';
+import { logger } from '@/utils/logger';
 
 export class NotesService {
-  /**
-   * Get the current authenticated user's ID
-   * Throws error if user is not authenticated
-   */
+
   private static async getCurrentUserId(): Promise<string> {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) {
@@ -22,11 +11,7 @@ export class NotesService {
     }
     return user.id;
   }
-
-  /**
-   * Get all notes for the current authenticated user
-   * @param folderId Optional folder ID to filter notes
-   */
+  
   static async getNotes(folderId?: string | null): Promise<Note[]> {
     const userId = await this.getCurrentUserId();
     try {
@@ -48,25 +33,21 @@ export class NotesService {
 
       if (error) throw error;
       
-      // Mapear campos snake_case para camelCase
-      return (data || []).map((note: any) => ({
+      return (data || []).map((note: DatabaseNote) => ({
         id: note.id,
         title: note.title,
-        content: note.content,
-        folderId: note.folder_id,
+        content: note.content ?? '',
+        folderId: note.folder_id ?? null,
         userId: note.user_id,
         createdAt: note.created_at,
         updatedAt: note.updated_at,
       }));
     } catch (error) {
-      console.error('Error fetching notes:', error);
+      logger.error('Error fetching notes', error, { folderId });
       throw error;
     }
   }
 
-  /**
-   * Get a single note by ID for the current authenticated user
-   */
   static async getNoteById(noteId: string): Promise<Note | null> {
     const userId = await this.getCurrentUserId();
     try {
@@ -81,26 +62,22 @@ export class NotesService {
       
       if (!data) return null;
       
-      // Mapear campos snake_case para camelCase
+      const dbNote = data as DatabaseNote;
       return {
-        id: data.id,
-        title: data.title,
-        content: data.content,
-        folderId: data.folder_id,
-        userId: data.user_id,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
+        id: dbNote.id,
+        title: dbNote.title,
+        content: dbNote.content ?? '',
+        folderId: dbNote.folder_id ?? null,
+        userId: dbNote.user_id,
+        createdAt: dbNote.created_at,
+        updatedAt: dbNote.updated_at,
       };
     } catch (error) {
-      console.error('Error fetching note:', error);
+      logger.error('Error fetching note by ID', error, { noteId });
       return null;
     }
   }
 
-  /**
-   * Create a new note for the current authenticated user
-   * Note: userId is automatically set from the authenticated user
-   */
   static async createNote(note: Omit<Note, 'id' | 'userId' | 'createdAt' | 'updatedAt'>): Promise<Note> {
     const userId = await this.getCurrentUserId();
     try {
@@ -110,32 +87,29 @@ export class NotesService {
           title: note.title,
           content: note.content,
           folder_id: note.folderId,
-          user_id: userId, // Automatically set from authenticated user
+          user_id: userId,
         })
         .select()
         .single();
 
       if (error) throw error;
       
-      // Mapear campos snake_case para camelCase
+      const dbNote = data as DatabaseNote;
       return {
-        id: data.id,
-        title: data.title,
-        content: data.content,
-        folderId: data.folder_id,
-        userId: data.user_id,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
+        id: dbNote.id,
+        title: dbNote.title,
+        content: dbNote.content ?? '',
+        folderId: dbNote.folder_id ?? null,
+        userId: dbNote.user_id,
+        createdAt: dbNote.created_at,
+        updatedAt: dbNote.updated_at,
       };
     } catch (error) {
-      console.error('Error creating note:', error);
+      logger.error('Error creating note', error, { noteTitle: note.title });
       throw error;
     }
   }
 
-  /**
-   * Update an existing note for the current authenticated user
-   */
   static async updateNote(
     noteId: string,
     updates: Partial<Pick<Note, 'title' | 'content' | 'folderId'>>
@@ -148,7 +122,6 @@ export class NotesService {
           title: updates.title,
           content: updates.content,
           folder_id: updates.folderId,
-          // updated_at é atualizado automaticamente pelo trigger do banco
         })
         .eq('id', noteId)
         .eq('user_id', userId)
@@ -157,25 +130,22 @@ export class NotesService {
 
       if (error) throw error;
       
-      // Mapear campos snake_case para camelCase
+      const dbNote = data as DatabaseNote;
       return {
-        id: data.id,
-        title: data.title,
-        content: data.content,
-        folderId: data.folder_id,
-        userId: data.user_id,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
+        id: dbNote.id,
+        title: dbNote.title,
+        content: dbNote.content ?? '',
+        folderId: dbNote.folder_id ?? null,
+        userId: dbNote.user_id,
+        createdAt: dbNote.created_at,
+        updatedAt: dbNote.updated_at,
       };
     } catch (error) {
-      console.error('Error updating note:', error);
+      logger.error('Error updating note', error, { noteId, updates });
       throw error;
     }
   }
 
-  /**
-   * Delete a note for the current authenticated user
-   */
   static async deleteNote(noteId: string): Promise<void> {
     const userId = await this.getCurrentUserId();
     try {
@@ -187,14 +157,11 @@ export class NotesService {
 
       if (error) throw error;
     } catch (error) {
-      console.error('Error deleting note:', error);
+      logger.error('Error deleting note', error, { noteId });
       throw error;
     }
   }
 
-  /**
-   * Get all folders for the current authenticated user
-   */
   static async getFolders(): Promise<Folder[]> {
     const userId = await this.getCurrentUserId();
     try {
@@ -206,26 +173,21 @@ export class NotesService {
 
       if (error) throw error;
 
-      // Transform the data to match our Folder type
-      return (data || []).map((folder: any) => ({
+      return (data || []).map((folder: DatabaseFolder) => ({
         id: folder.id,
         name: folder.name,
         userId: folder.user_id,
-        color: folder.color,
+        color: folder.color ?? undefined,
         noteCount: folder.notes?.[0]?.count || 0,
         createdAt: folder.created_at,
         updatedAt: folder.updated_at,
       }));
     } catch (error) {
-      console.error('Error fetching folders:', error);
+      logger.error('Error fetching folders', error);
       throw error;
     }
   }
 
-  /**
-   * Create a new folder for the current authenticated user
-   * Note: userId is automatically set from the authenticated user
-   */
   static async createFolder(folder: Omit<Folder, 'id' | 'userId' | 'noteCount' | 'createdAt' | 'updatedAt'>): Promise<Folder> {
     const userId = await this.getCurrentUserId();
     try {
@@ -233,7 +195,7 @@ export class NotesService {
         .from('folders')
         .insert({
           name: folder.name,
-          user_id: userId, // Automatically set from authenticated user
+          user_id: userId,
           color: folder.color,
         })
         .select()
@@ -251,14 +213,11 @@ export class NotesService {
         updatedAt: data.updated_at,
       };
     } catch (error) {
-      console.error('Error creating folder:', error);
+      logger.error('Error creating folder', error, { folderName: folder.name });
       throw error;
     }
   }
 
-  /**
-   * Delete a folder for the current authenticated user
-   */
   static async deleteFolder(folderId: string): Promise<void> {
     const userId = await this.getCurrentUserId();
     try {
@@ -270,7 +229,7 @@ export class NotesService {
 
       if (error) throw error;
     } catch (error) {
-      console.error('Error deleting folder:', error);
+      logger.error('Error deleting folder', error, { folderId });
       throw error;
     }
   }

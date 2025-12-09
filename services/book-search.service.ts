@@ -54,6 +54,9 @@ interface OpenLibrarySearchResponse {
   docs: OpenLibraryBookResponse[];
 }
 
+import { logger } from '@/utils/logger';
+import { retry } from '@/utils/retry';
+
 export class BookSearchService {
 
   static async searchBooks(query: string, maxResults: number = 20): Promise<BookSearchResult[]> {
@@ -70,20 +73,20 @@ export class BookSearchService {
       if (googleResults.status === 'fulfilled') {
         results.push(...googleResults.value);
       } else {
-        console.warn('Google Books API error:', googleResults.reason);
+        logger.warn('Google Books API error', { error: googleResults.reason, query });
       }
 
       if (openLibraryResults.status === 'fulfilled') {
         results.push(...openLibraryResults.value);
       } else {
-        console.warn('Open Library API error:', openLibraryResults.reason);
+        logger.warn('Open Library API error', { error: openLibraryResults.reason, query });
       }
 
       const uniqueResults = this.removeDuplicates(results);
 
       return uniqueResults.slice(0, maxResults);
     } catch (error) {
-      console.error('Error searching books:', error);
+      logger.error('Error searching books', error, { query, maxResults });
       throw error;
     }
   }
@@ -106,7 +109,7 @@ export class BookSearchService {
         .map((item) => this.mapGoogleBookToResult(item))
         .filter((result): result is BookSearchResult => result !== null);
     } catch (error) {
-      console.error('Error searching Google Books:', error);
+      logger.error('Error searching Google Books', error, { query, maxResults });
       throw error;
     }
   }
@@ -132,7 +135,7 @@ export class BookSearchService {
         .map((doc) => this.mapOpenLibraryBookToResult(doc))
         .filter((result): result is BookSearchResult => result !== null);
     } catch (error) {
-      console.error('Error searching Open Library:', error);
+      logger.error('Error searching Open Library', error, { query, maxResults });
       throw error;
     }
   }

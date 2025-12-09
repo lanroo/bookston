@@ -8,7 +8,9 @@
  */
 
 import { supabase } from '@/lib/supabase';
-import type { Book, BookStatus } from '@/types';
+import { logger } from '@/utils/logger';
+import { retry } from '@/utils/retry';
+import type { Book, BookStatus, DatabaseBook, BookUpdateData } from '@/types';
 
 export class BooksService {
   /**
@@ -34,6 +36,7 @@ export class BooksService {
         .from('books')
         .select('*')
         .eq('user_id', userId)
+        .order('display_order', { ascending: true })
         .order('updated_at', { ascending: false });
 
       if (status) {
@@ -44,22 +47,23 @@ export class BooksService {
 
       if (error) throw error;
 
-      return (data || []).map((book: any) => ({
+      return (data || []).map((book: DatabaseBook) => ({
         id: book.id,
         title: book.title,
         author: book.author,
         status: book.status,
         userId: book.user_id,
-        coverUrl: book.cover_url,
-        rating: book.rating,
-        notes: book.notes,
-        startedAt: book.started_at,
-        finishedAt: book.finished_at,
+        coverUrl: book.cover_url ?? undefined,
+        rating: book.rating ?? undefined,
+        notes: book.notes ?? undefined,
+        startedAt: book.started_at ?? undefined,
+        finishedAt: book.finished_at ?? undefined,
+        displayOrder: book.display_order ?? 0,
         createdAt: book.created_at,
         updatedAt: book.updated_at,
       }));
     } catch (error) {
-      console.error('Error fetching books:', error);
+      logger.error('Error fetching books', error, { status, userId });
       throw error;
     }
   }
@@ -78,22 +82,24 @@ export class BooksService {
       
       if (!data) return null;
       
+      const dbBook = data as DatabaseBook;
       return {
-        id: data.id,
-        title: data.title,
-        author: data.author,
-        status: data.status,
-        userId: data.user_id,
-        coverUrl: data.cover_url,
-        rating: data.rating,
-        notes: data.notes,
-        startedAt: data.started_at,
-        finishedAt: data.finished_at,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
+        id: dbBook.id,
+        title: dbBook.title,
+        author: dbBook.author,
+        status: dbBook.status,
+        userId: dbBook.user_id,
+        coverUrl: dbBook.cover_url ?? undefined,
+        rating: dbBook.rating ?? undefined,
+        notes: dbBook.notes ?? undefined,
+        startedAt: dbBook.started_at ?? undefined,
+        finishedAt: dbBook.finished_at ?? undefined,
+        displayOrder: dbBook.display_order ?? 0,
+        createdAt: dbBook.created_at,
+        updatedAt: dbBook.updated_at,
       };
     } catch (error) {
-      console.error('Error fetching book:', error);
+      logger.error('Error fetching book by ID', error, { bookId });
       return null;
     }
   }
@@ -123,22 +129,24 @@ export class BooksService {
 
       if (error) throw error;
       
+      const dbBook = data as DatabaseBook;
       return {
-        id: data.id,
-        title: data.title,
-        author: data.author,
-        status: data.status,
-        userId: data.user_id,
-        coverUrl: data.cover_url,
-        rating: data.rating,
-        notes: data.notes,
-        startedAt: data.started_at,
-        finishedAt: data.finished_at,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
+        id: dbBook.id,
+        title: dbBook.title,
+        author: dbBook.author,
+        status: dbBook.status,
+        userId: dbBook.user_id,
+        coverUrl: dbBook.cover_url ?? undefined,
+        rating: dbBook.rating ?? undefined,
+        notes: dbBook.notes ?? undefined,
+        startedAt: dbBook.started_at ?? undefined,
+        finishedAt: dbBook.finished_at ?? undefined,
+        displayOrder: dbBook.display_order ?? 0,
+        createdAt: dbBook.created_at,
+        updatedAt: dbBook.updated_at,
       };
     } catch (error) {
-      console.error('Error creating book:', error);
+      logger.error('Error creating book', error, { bookTitle: book.title });
       throw error;
     }
   }
@@ -148,22 +156,26 @@ export class BooksService {
    */
   static async updateBook(
     bookId: string,
-    updates: Partial<Pick<Book, 'title' | 'author' | 'status' | 'rating' | 'notes' | 'startedAt' | 'finishedAt'>>
+    updates: BookUpdateData
   ): Promise<Book> {
     const userId = await this.getCurrentUserId();
     try {
+      const updateData: Partial<DatabaseBook> = {
+        updated_at: new Date().toISOString(),
+      };
+
+      if (updates.title !== undefined) updateData.title = updates.title;
+      if (updates.author !== undefined) updateData.author = updates.author;
+      if (updates.status !== undefined) updateData.status = updates.status;
+      if (updates.rating !== undefined) updateData.rating = updates.rating;
+      if (updates.notes !== undefined) updateData.notes = updates.notes;
+      if (updates.startedAt !== undefined) updateData.started_at = updates.startedAt;
+      if (updates.finishedAt !== undefined) updateData.finished_at = updates.finishedAt;
+      if (updates.displayOrder !== undefined) updateData.display_order = updates.displayOrder;
+
       const { data, error } = await supabase
         .from('books')
-        .update({
-          title: updates.title,
-          author: updates.author,
-          status: updates.status,
-          rating: updates.rating,
-          notes: updates.notes,
-          started_at: updates.startedAt,
-          finished_at: updates.finishedAt,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', bookId)
         .eq('user_id', userId)
         .select()
@@ -171,23 +183,24 @@ export class BooksService {
 
       if (error) throw error;
       
-      // Mapear campos snake_case para camelCase
+      const dbBook = data as DatabaseBook;
       return {
-        id: data.id,
-        title: data.title,
-        author: data.author,
-        status: data.status,
-        userId: data.user_id,
-        coverUrl: data.cover_url,
-        rating: data.rating,
-        notes: data.notes,
-        startedAt: data.started_at,
-        finishedAt: data.finished_at,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
+        id: dbBook.id,
+        title: dbBook.title,
+        author: dbBook.author,
+        status: dbBook.status,
+        userId: dbBook.user_id,
+        coverUrl: dbBook.cover_url ?? undefined,
+        rating: dbBook.rating ?? undefined,
+        notes: dbBook.notes ?? undefined,
+        startedAt: dbBook.started_at ?? undefined,
+        finishedAt: dbBook.finished_at ?? undefined,
+        displayOrder: dbBook.display_order ?? 0,
+        createdAt: dbBook.created_at,
+        updatedAt: dbBook.updated_at,
       };
     } catch (error) {
-      console.error('Error updating book:', error);
+      logger.error('Error updating book', error, { bookId, updates });
       throw error;
     }
   }
@@ -206,7 +219,7 @@ export class BooksService {
 
       if (error) throw error;
     } catch (error) {
-      console.error('Error deleting book:', error);
+      logger.error('Error deleting book', error, { bookId });
       throw error;
     }
   }
@@ -237,8 +250,56 @@ export class BooksService {
 
       return stats;
     } catch (error) {
-      console.error('Error fetching book stats:', error);
+      logger.error('Error fetching book stats', error);
       return { total: 0, wantToRead: 0, reading: 0, read: 0, rereading: 0 };
+    }
+  }
+
+  /**
+   * Update the display order of multiple books
+   * @param bookOrders Array of { bookId, displayOrder } pairs
+   */
+  static async updateBooksOrder(bookOrders: { bookId: string; displayOrder: number }[]): Promise<void> {
+    const userId = await this.getCurrentUserId();
+    try {
+      // Update each book's display order
+      const updates = bookOrders.map(({ bookId, displayOrder }) =>
+        supabase
+          .from('books')
+          .update({ display_order: displayOrder, updated_at: new Date().toISOString() })
+          .eq('id', bookId)
+          .eq('user_id', userId)
+      );
+
+      const results = await Promise.all(updates);
+      
+      // Check for errors
+      for (const result of results) {
+        if (result.error) throw result.error;
+      }
+    } catch (error) {
+      logger.error('Error updating books order', error, { bookCount: bookOrders.length });
+      throw error;
+    }
+  }
+
+  /**
+   * Delete multiple books
+   * @param bookIds Array of book IDs to delete
+   */
+  static async deleteBooks(bookIds: string[]): Promise<void> {
+    const userId = await this.getCurrentUserId();
+    try {
+      const { error } = await supabase
+        .from('books')
+        .delete()
+        .in('id', bookIds)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+    } catch (error) {
+      logger.error('Error deleting books', error, { bookCount: bookIds.length });
+      throw error;
     }
   }
 }
