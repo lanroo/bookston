@@ -6,6 +6,7 @@ import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MarkdownText } from '@/components/markdown-text';
+import { useTabBarPadding } from '@/components/tab-bar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,6 +27,7 @@ export default function HomeScreen() {
   const [folders, setFolders] = useState<any[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
+  const tabBarPadding = useTabBarPadding();
 
   const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuário';
 
@@ -132,7 +134,7 @@ export default function HomeScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarPadding }]}
         showsVerticalScrollIndicator={false}>
         <ThemedView style={styles.header}>
           <ThemedView>
@@ -256,7 +258,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 40,
   },
   header: {
     flexDirection: 'row',

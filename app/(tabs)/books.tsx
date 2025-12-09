@@ -12,6 +12,7 @@ import { LoadingScreen } from '@/components/loading-screen';
 import { ReorderableBookList } from '@/components/reorder';
 import { ScreenHeader } from '@/components/screen-header';
 import { SwipeableBookCard } from '@/components/swipeable-book-card';
+import { useTabBarPadding } from '@/components/tab-bar';
 import { TabSelector, type TabOption } from '@/components/tab-selector';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -40,6 +41,7 @@ export default function BooksScreen() {
   const [selectedBookIds, setSelectedBookIds] = useState<Set<string>>(new Set());
   const [isDragging, setIsDragging] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const tabBarPadding = useTabBarPadding();
 
   const filteredBooks = activeTab === 'all' 
     ? books 
@@ -239,6 +241,7 @@ export default function BooksScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
+          { paddingBottom: tabBarPadding },
           selectionMode && styles.scrollContentWithSelectionBar
         ]}
         showsVerticalScrollIndicator={false}
@@ -387,7 +390,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 40,
   },
   scrollContentWithSelectionBar: {
     paddingBottom: 100,
