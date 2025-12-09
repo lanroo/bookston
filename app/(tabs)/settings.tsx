@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PushNotificationSettings } from '@/components/settings';
+import { PushNotificationSettings, SignOutButton } from '@/components/settings';
 import { useTabBarPadding } from '@/components/tab-bar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -180,6 +180,10 @@ export default function SettingsScreen() {
             </ThemedView>
           </ThemedView>
         ))}
+
+        <ThemedView style={styles.signOutSection}>
+          <SignOutButton style={styles.signOutButton} />
+        </ThemedView>
 
         <ThemedView style={styles.versionContainer}>
           <ThemedText style={[styles.versionText, { opacity: 0.4 }]}>Versão 1.0.0</ThemedText>
@@ -364,6 +368,13 @@ const styles = StyleSheet.create({
   },
   settingsItemValue: {
     fontSize: 14,
+  },
+  signOutSection: {
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  signOutButton: {
+    marginBottom: 0,
   },
   versionContainer: {
     alignItems: 'center',
