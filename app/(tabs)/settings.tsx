@@ -1,12 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { Modal, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PushNotificationSettings } from '@/components/settings';
+import { useTabBarPadding } from '@/components/tab-bar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Colors } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import type { ThemeMode } from '@/types';
 
@@ -16,7 +20,10 @@ export default function SettingsScreen() {
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
   const { themeMode, setThemeMode } = useTheme();
+  const { isEnabled: pushNotificationsEnabled } = usePushNotifications();
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showPushNotificationModal, setShowPushNotificationModal] = useState(false);
+  const tabBarPadding = useTabBarPadding();
 
   const getThemeLabel = (mode: ThemeMode) => {
     switch (mode) {
@@ -46,14 +53,6 @@ export default function SettingsScreen() {
             setShowThemeModal(true);
           },
         },
-        {
-          icon: 'text-outline',
-          label: 'Tamanho da Fonte',
-          value: 'Padrão',
-          onPress: () => {
-            console.log('Configurar fonte');
-          },
-        },
       ],
     },
     {
@@ -62,9 +61,9 @@ export default function SettingsScreen() {
         {
           icon: 'notifications-outline',
           label: 'Notificações Push',
-          value: 'Ativado',
+          value: pushNotificationsEnabled ? 'Ativado' : 'Desativado',
           onPress: () => {
-            console.log('Configurar notificações');
+            setShowPushNotificationModal(true);
           },
         },
         {
@@ -143,7 +142,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarPadding }]}
         showsVerticalScrollIndicator={false}>
         <ThemedView style={styles.header}>
           <ThemedText type="title" style={styles.headerTitle}>
@@ -197,51 +196,102 @@ export default function SettingsScreen() {
           activeOpacity={1}
           onPress={() => setShowThemeModal(false)}>
           <ThemedView
-            style={[styles.modalContent, { backgroundColor: backgroundColor, borderColor: textColor + '20' }]}
+            style={[styles.modalContent, { backgroundColor }]}
             onStartShouldSetResponder={() => true}>
-            <ThemedView style={styles.modalHeader}>
-              <ThemedText type="subtitle" style={styles.modalTitle}>
-                Escolher Tema
-              </ThemedText>
-              <TouchableOpacity onPress={() => setShowThemeModal(false)}>
-                <Ionicons name="close" size={24} color={textColor} />
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderLeft}>
+                <View style={[styles.modalIconContainer, { backgroundColor: tintColor + '15' }]}>
+                  <Ionicons name="color-palette" size={20} color={tintColor} />
+                </View>
+                <ThemedText type="subtitle" style={styles.modalTitle}>
+                  Escolher Tema
+                </ThemedText>
+              </View>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setShowThemeModal(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={22} color={textColor} style={{ opacity: 0.6 }} />
               </TouchableOpacity>
-            </ThemedView>
+            </View>
 
-            <ThemedView style={styles.themeOptions}>
-              {(['light', 'dark'] as ThemeMode[]).map((mode) => (
-                <TouchableOpacity
-                  key={mode}
-                  style={[
-                    styles.themeOption,
-                    { backgroundColor: backgroundColor, borderColor: textColor + '20' },
-                    themeMode === mode && { borderColor: tintColor, borderWidth: 2 },
-                  ]}
-                  onPress={() => handleThemeChange(mode)}>
-                  <ThemedView style={styles.themeOptionContent}>
-                    <Ionicons
-                      name={mode === 'light' ? 'sunny' : 'moon'}
-                      size={24}
-                      color={themeMode === mode ? tintColor : textColor}
-                    />
-                    <ThemedView style={styles.themeOptionText}>
-                      <ThemedText style={[styles.themeOptionLabel, themeMode === mode && { color: tintColor, fontWeight: '600' }]}>
-                        {getThemeLabel(mode)}
-                      </ThemedText>
-                      <ThemedText style={[styles.themeOptionDescription, { opacity: 0.6 }]}>
-                        {mode === 'light' ? 'Tema claro' : 'Tema escuro'}
-                      </ThemedText>
-                    </ThemedView>
-                  </ThemedView>
-                  {themeMode === mode && (
-                    <Ionicons name="checkmark-circle" size={24} color={tintColor} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ThemedView>
+            <View style={styles.themeOptions}>
+              {(['light', 'dark'] as ThemeMode[]).map((mode) => {
+                const isSelected = themeMode === mode;
+                const isLight = mode === 'light';
+                const themeColors = Colors[mode];
+                const borderColor = isSelected 
+                  ? tintColor 
+                  : (isLight ? themeColors.text + '15' : themeColors.text + '20');
+                
+                return (
+                  <TouchableOpacity
+                    key={mode}
+                    style={[
+                      styles.themeOption,
+                      {
+                        backgroundColor: themeColors.background,
+                        borderColor,
+                        borderWidth: isSelected ? 2 : 1,
+                      },
+                    ]}
+                    onPress={() => handleThemeChange(mode)}
+                    activeOpacity={0.7}>
+                    <View style={styles.themeOptionLeft}>
+                      <View style={[
+                        styles.themeIconContainer,
+                        {
+                          backgroundColor: isSelected 
+                            ? tintColor + (isLight ? '15' : '20')
+                            : (isLight ? themeColors.text + '08' : themeColors.text + '10'),
+                        }
+                      ]}>
+                        <Ionicons
+                          name={isLight ? 'sunny' : 'moon'}
+                          size={28}
+                          color={isSelected ? tintColor : themeColors.icon}
+                        />
+                      </View>
+                      <View style={styles.themeOptionText}>
+                        <ThemedText 
+                          style={[
+                            styles.themeOptionLabel,
+                            { 
+                              color: themeColors.text,
+                              fontWeight: isSelected ? '700' : '600',
+                            }
+                          ]}>
+                          {getThemeLabel(mode)}
+                        </ThemedText>
+                        <ThemedText 
+                          style={[
+                            styles.themeOptionDescription,
+                            { 
+                              color: themeColors.icon,
+                              opacity: 0.9,
+                            }
+                          ]}>
+                          {isLight ? 'Ideal para uso durante o dia' : 'Ideal para uso à noite'}
+                        </ThemedText>
+                      </View>
+                    </View>
+                    {isSelected && (
+                      <View style={[styles.checkmarkContainer, { backgroundColor: tintColor }]}>
+                        <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </ThemedView>
         </TouchableOpacity>
       </Modal>
+
+      <PushNotificationSettings
+        visible={showPushNotificationModal}
+        onClose={() => setShowPushNotificationModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -255,7 +305,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 40,
   },
   header: {
     marginBottom: 32,
@@ -325,55 +374,112 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalContent: {
     width: '100%',
-    maxWidth: 400,
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 24,
+    maxWidth: 420,
+    borderRadius: 24,
+    padding: 0,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 16,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    padding: 24,
+    paddingBottom: 20,
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  modalIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   themeOptions: {
-    gap: 12,
+    gap: 16,
+    padding: 24,
+    paddingTop: 8,
   },
   themeOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1.5,
+    padding: 20,
+    borderRadius: 16,
+    minHeight: 88,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  themeOptionContent: {
+  themeOptionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
     flex: 1,
   },
+  themeIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   themeOptionText: {
     flex: 1,
+    gap: 4,
   },
   themeOptionLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 4,
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 2,
+    letterSpacing: -0.3,
   },
   themeOptionDescription: {
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  checkmarkContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
