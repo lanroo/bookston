@@ -1,11 +1,4 @@
--- ============================================
--- SCRIPT DE CONFIGURAÇÃO DO SUPABASE
--- Isolamento de Dados por Usuário (RLS)
--- ============================================
 
--- ============================================
--- 1. CRIAR TABELAS
--- ============================================
 
 -- Tabela de Pastas (deve ser criada primeiro por causa da foreign key)
 CREATE TABLE IF NOT EXISTS folders (
@@ -33,13 +26,14 @@ CREATE TABLE IF NOT EXISTS books (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   title TEXT NOT NULL,
   author TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('want-to-read', 'reading', 'read')),
+  status TEXT NOT NULL CHECK (status IN ('want-to-read', 'reading', 'read', 'rereading')),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   cover_url TEXT,
   rating INTEGER CHECK (rating >= 0 AND rating <= 5),
   notes TEXT,
   started_at TIMESTAMP WITH TIME ZONE,
   finished_at TIMESTAMP WITH TIME ZONE,
+  display_order INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
@@ -53,6 +47,7 @@ CREATE INDEX IF NOT EXISTS notes_folder_id_idx ON notes(folder_id);
 CREATE INDEX IF NOT EXISTS folders_user_id_idx ON folders(user_id);
 CREATE INDEX IF NOT EXISTS books_user_id_idx ON books(user_id);
 CREATE INDEX IF NOT EXISTS books_status_idx ON books(status);
+CREATE INDEX IF NOT EXISTS books_display_order_idx ON books(user_id, display_order);
 
 -- ============================================
 -- 3. ATIVAR ROW LEVEL SECURITY (RLS)
