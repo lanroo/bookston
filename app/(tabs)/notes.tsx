@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Animated, RefreshControl, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/empty-state';
@@ -41,6 +41,7 @@ export default function NotesScreen() {
   const [selectedNoteForInfo, setSelectedNoteForInfo] = useState<Note | null>(null);
   const [optionsSheetVisible, setOptionsSheetVisible] = useState(false);
   const [selectedNoteForOptions, setSelectedNoteForOptions] = useState<Note | null>(null);
+  const indicatorAnim = useRef(new Animated.Value(viewMode === 'grid' ? 0 : 1)).current;
 
   const filteredNotes = selectedFolder
     ? notes.filter((note) => note.folderId === selectedFolder)
@@ -88,6 +89,15 @@ export default function NotesScreen() {
       router.setParams({ create: undefined });
     }
   }, [params.create, handleCreateNote]);
+
+  useEffect(() => {
+    Animated.spring(indicatorAnim, {
+      toValue: viewMode === 'grid' ? 0 : 1,
+      useNativeDriver: true,
+      tension: 100,
+      friction: 8,
+    }).start();
+  }, [viewMode, indicatorAnim]);
 
   const handleEditNote = (note: Note) => {
     setEditingNote(note);
@@ -166,45 +176,63 @@ export default function NotesScreen() {
       <ScreenHeader
         title="Notas"
         onAddPress={handleCreateNote}
-        rightAction={
-          filteredNotes.length > 0 ? (
-            <ThemedView style={styles.viewModeContainer}>
-              <TouchableOpacity
+      />
+      
+      {filteredNotes.length > 0 && (
+        <ThemedView style={[styles.toolbar, { backgroundColor, borderBottomColor: textColor + '10' }]}>
+          <ThemedView style={styles.toolbarContent}>
+            <ThemedView style={styles.toolbarLeft}>
+              <ThemedText style={[styles.toolbarTitle, { color: textColor }]}>
+                {filteredNotes.length} {filteredNotes.length === 1 ? 'nota' : 'notas'}
+              </ThemedText>
+            </ThemedView>
+            <ThemedView style={[styles.segmentedControl, { 
+              backgroundColor: colorScheme === 'dark' ? textColor + '08' : textColor + '05',
+              borderColor: textColor + '15',
+              shadowColor: colorScheme === 'dark' ? '#000' : '#000',
+            }]}>
+              <Animated.View
                 style={[
-                  styles.viewModeButton,
-                  viewMode === 'grid' && { backgroundColor: tintColor + '20' },
+                  styles.segmentedIndicator,
+                  {
+                    backgroundColor: tintColor,
+                    shadowColor: tintColor,
+                    transform: [
+                      {
+                        translateX: indicatorAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [2, 50],
+                        }),
+                      },
+                    ],
+                  },
                 ]}
+              />
+              <TouchableOpacity
+                style={styles.segmentedButton}
                 onPress={() => setViewMode('grid')}
                 activeOpacity={0.7}>
                 <Ionicons
                   name="grid"
-                  size={20}
-                  color={viewMode === 'grid' ? tintColor : textColor}
+                  size={19}
+                  color={viewMode === 'grid' ? (colorScheme === 'dark' ? '#000' : '#fff') : textColor + '60'}
                 />
               </TouchableOpacity>
+              <ThemedView style={[styles.segmentedDivider, { backgroundColor: textColor + '15' }]} />
               <TouchableOpacity
-                style={[
-                  styles.viewModeButton,
-                  viewMode === 'list' && { backgroundColor: tintColor + '20' },
-                ]}
+                style={styles.segmentedButton}
                 onPress={() => setViewMode('list')}
                 activeOpacity={0.7}>
                 <Ionicons
                   name="list"
-                  size={20}
-                  color={viewMode === 'list' ? tintColor : textColor}
+                  size={19}
+                  color={viewMode === 'list' ? (colorScheme === 'dark' ? '#000' : '#fff') : textColor + '60'}
                 />
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.addButton, { backgroundColor: tintColor }]}
-                onPress={handleCreateNote}
-                activeOpacity={0.8}>
-                <Ionicons name="add" size={24} color={colorScheme === 'dark' ? '#000' : '#fff'} />
-              </TouchableOpacity>
             </ThemedView>
-          ) : undefined
-        }
-      />
+          </ThemedView>
+        </ThemedView>
+      )}
       {folders.length > 0 && (
         <ThemedView style={styles.foldersSection}>
           <ScrollView
