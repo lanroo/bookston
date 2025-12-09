@@ -1,16 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 
+import { CommentSection, PointsDisplay } from '@/components/social';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useRelativeTime } from '@/hooks/use-relative-time';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 export interface FeedPost {
   id: string;
   userId: string;
   userName: string;
+  userUsername?: string;
   userAvatar?: string;
   bookTitle: string;
   bookAuthor: string;
@@ -25,37 +28,23 @@ export interface FeedPost {
 
 interface FeedPostProps {
   post: FeedPost;
+  currentUserId?: string;
   onPress?: (post: FeedPost) => void;
   onLike?: (post: FeedPost) => void;
   onComment?: (post: FeedPost) => void;
+  onOptions?: (post: FeedPost) => void;
 }
 
-export function FeedPost({ post, onPress, onLike, onComment }: FeedPostProps) {
+export function FeedPost({ post, currentUserId, onPress, onLike, onComment, onOptions }: FeedPostProps) {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const separatorColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
   const tintColor = '#0a7ea4';
-
-  const formatRelativeDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Agora';
-    if (diffMins < 60) return `${diffMins}min`;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}d`;
-    
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-    });
-  };
+  const [showComments, setShowComments] = useState(false);
+  const isOwnPost = currentUserId && post.userId === currentUserId;
+  const relativeTime = useRelativeTime(post.createdAt);
 
   const renderStars = (rating: number) => {
     return (
@@ -74,28 +63,48 @@ export function FeedPost({ post, onPress, onLike, onComment }: FeedPostProps) {
 
   return (
     <ThemedView style={[styles.post, { backgroundColor, borderColor: separatorColor }]}>
-      <TouchableOpacity
-        style={styles.postHeader}
-        onPress={() => onPress?.(post)}
-        activeOpacity={0.7}>
-        <View style={styles.userInfo}>
-          {post.userAvatar ? (
-            <Image source={{ uri: post.userAvatar }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatarPlaceholder, { backgroundColor: tintColor + '20' }]}>
-              <Ionicons name="person" size={20} color={tintColor} />
+      <View style={styles.postHeader}>
+        <TouchableOpacity
+          style={styles.userInfoContainer}
+          onPress={() => onPress?.(post)}
+          activeOpacity={0.7}>
+          <View style={styles.userInfo}>
+            {post.userAvatar ? (
+              <Image source={{ uri: post.userAvatar }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatarPlaceholder, { backgroundColor: tintColor + '20' }]}>
+                <Ionicons name="person" size={20} color={tintColor} />
+              </View>
+            )}
+            <View style={styles.userDetails}>
+              <View style={styles.userNameRow}>
+                <View style={styles.userNameContainer}>
+                  <ThemedText style={[styles.userName, { color: textColor }]}>
+                    {post.userName}
+                  </ThemedText>
+                  {post.userUsername && (
+                    <ThemedText style={[styles.userUsername, { color: textColor, opacity: 0.5 }]}>
+                      @{post.userUsername}
+                    </ThemedText>
+                  )}
+                </View>
+                <PointsDisplay userId={post.userId} compact showLevel={false} />
+              </View>
+              <ThemedText style={[styles.postTime, { color: textColor, opacity: 0.5 }]}>
+                {relativeTime}
+              </ThemedText>
             </View>
-          )}
-          <View style={styles.userDetails}>
-            <ThemedText style={[styles.userName, { color: textColor }]}>
-              {post.userName}
-            </ThemedText>
-            <ThemedText style={[styles.postTime, { color: textColor, opacity: 0.5 }]}>
-              {formatRelativeDate(post.createdAt)}
-            </ThemedText>
           </View>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+        {isOwnPost && onOptions && (
+          <TouchableOpacity
+            style={[styles.optionsButton, { backgroundColor: textColor + '08' }]}
+            onPress={() => onOptions(post)}
+            activeOpacity={0.6}>
+            <Ionicons name="ellipsis-vertical" size={18} color={textColor} />
+          </TouchableOpacity>
+        )}
+      </View>
 
       <TouchableOpacity
         style={styles.bookInfo}
@@ -151,22 +160,34 @@ export function FeedPost({ post, onPress, onLike, onComment }: FeedPostProps) {
 
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => onComment?.(post)}
+          onPress={() => {
+            setShowComments(!showComments);
+            onComment?.(post);
+          }}
           activeOpacity={0.6}>
           <Ionicons
-            name="chatbubble-outline"
+            name={showComments ? 'chatbubble' : 'chatbubble-outline'}
             size={20}
-            color={isDark ? textColor + '80' : textColor + '60'}
+            color={showComments ? tintColor : (isDark ? textColor + '80' : textColor + '60')}
           />
           <ThemedText
             style={[
               styles.actionText,
-              { color: isDark ? textColor + '80' : textColor + '60' },
+              { color: showComments ? tintColor : (isDark ? textColor + '80' : textColor + '60') },
             ]}>
             {post.comments}
           </ThemedText>
         </TouchableOpacity>
       </View>
+
+      {showComments && (
+        <CommentSection
+          postId={post.id}
+          onCommentAdded={() => { 
+            onComment?.(post);
+          }}
+        />
+      )}
     </ThemedView>
   );
 }
@@ -185,10 +206,21 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 12,
   },
+  userInfoContainer: {
+    flex: 1,
+  },
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+  },
+  optionsButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
   avatar: {
     width: 40,
@@ -207,10 +239,25 @@ const styles = StyleSheet.create({
   userDetails: {
     flex: 1,
   },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  userNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
   userName: {
     fontSize: 15,
     fontWeight: '600',
-    marginBottom: 2,
+  },
+  userUsername: {
+    fontSize: 13,
+    fontWeight: '400',
   },
   postTime: {
     fontSize: 13,
