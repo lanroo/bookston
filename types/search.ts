@@ -15,6 +15,7 @@ export interface BookSearchResult {
   language?: string;
   source: 'google' | 'openlibrary' | 'user-library';
   isbn?: string;
+  publisher?: string;
 }
 
 export interface BookRecommendation extends BookSearchResult {

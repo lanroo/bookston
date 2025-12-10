@@ -6,6 +6,7 @@ interface GoogleBookResponse {
     title: string;
     authors?: string[];
     description?: string;
+    publisher?: string;
     imageLinks?: {
       thumbnail?: string;
       smallThumbnail?: string;
@@ -170,6 +171,7 @@ export class BookSearchService {
       pageCount: volumeInfo.pageCount,
       categories: volumeInfo.categories,
       language: volumeInfo.language,
+      publisher: volumeInfo.publisher,
       source: 'google',
       isbn,
     };
