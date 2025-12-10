@@ -7,6 +7,7 @@ import { ThemedView } from '@/components/themed-view';
 import { NOTIFICATION_COLORS, NOTIFICATION_OPACITY } from '@/constants/notifications';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { logger } from '@/utils/logger';
 
 interface PushNotificationSettingsProps {
   visible: boolean;
@@ -53,7 +54,7 @@ export function PushNotificationSettings({ visible, onClose }: PushNotificationS
         await disable();
       }
     } catch (error) {
-      console.error('Error toggling notifications:', error);
+      logger.error('Error toggling notifications', error);
       Alert.alert('Erro', 'Não foi possível alterar as configurações de notificação.');
     } finally {
       setIsToggling(false);

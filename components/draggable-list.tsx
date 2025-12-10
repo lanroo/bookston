@@ -1,5 +1,6 @@
 
 import type { DragHandleProps } from '@/types';
+import { logger } from '@/utils/logger';
 import React, { useCallback, useRef, useState } from 'react';
 import { Animated, PanResponder, ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
 
@@ -72,7 +73,7 @@ export function DraggableList<T>({
       
       const clamped = Math.max(0, Math.min(items.length - 1, targetIndex));
       
-      console.log('[CALCULATE TARGET]', {
+      logger.debug('Calculate drag target', {
         currentY,
         dragStartY: dragStartY.current,
         offset,
@@ -92,7 +93,7 @@ export function DraggableList<T>({
   const handleDragStart = useCallback((index: number, startY: number) => {
     if (disabled) return;
     const itemId = keyExtractor(items[index], index);
-    console.log('[DRAG START]', {
+    logger.debug('Drag start', {
       index,
       itemId,
       startY,
@@ -203,7 +204,7 @@ export function DraggableList<T>({
       const offset = currentY - dragStartY.current;
       const targetIndex = calculateTargetIndex(currentY, currentIndex);
       
-      console.log('[DRAG MOVE]', {
+      logger.debug('Drag move', {
         currentY,
         dragStartY: dragStartY.current,
         offset,
@@ -220,7 +221,7 @@ export function DraggableList<T>({
       setDragY(offset);
 
       if (targetIndex !== currentIndex && targetIndex !== hoverIndex) {
-        console.log('[REORDER]', {
+        logger.debug('Reorder items', {
           from: currentIndex,
           to: targetIndex,
           itemId: draggedItemId,
@@ -239,7 +240,7 @@ export function DraggableList<T>({
         const previousDragStartY = dragStartY.current;
         dragStartY.current = dragStartY.current + (indexDelta * itemHeightWithGap);
         
-        console.log('[UPDATE DRAG START]', {
+        logger.debug('Update drag start position', {
           currentIndex,
           newIndex: targetIndex,
           indexDelta,
