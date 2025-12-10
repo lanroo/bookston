@@ -75,7 +75,7 @@ export const BookCard = React.memo(function BookCard({
             )}
           </View>
         )}
-        {!selectionMode && dragHandleProps && (
+        {dragHandleProps && (
           <View 
             style={styles.dragHandle} 
             {...(dragHandleProps as any)}>
@@ -126,6 +126,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
     overflow: 'hidden',
+    width: '100%',
   },
   cardContent: {
     flexDirection: 'row',

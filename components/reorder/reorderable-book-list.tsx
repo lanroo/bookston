@@ -23,6 +23,7 @@ export interface ReorderableBookListProps {
   style?: ViewStyle;
   enabled?: boolean;
   onDraggingChange?: (isDragging: boolean) => void;
+  onOrderSaved?: () => void;
 }
 
 export function ReorderableBookList({
@@ -39,6 +40,7 @@ export function ReorderableBookList({
   style,
   enabled = true,
   onDraggingChange,
+  onOrderSaved,
 }: ReorderableBookListProps) {
   const currentScrollYRef = useRef(0);
 
@@ -59,6 +61,17 @@ export function ReorderableBookList({
   useEffect(() => {
     onDraggingChange?.(isDragging);
   }, [isDragging, onDraggingChange]);
+
+  const handleDragEndWithCallback = React.useCallback(async () => {
+    await handleDragEnd();
+    // Notify parent that order was saved so it can reload books in background
+    // Use setTimeout to avoid blocking UI
+    if (onOrderSaved) {
+      setTimeout(() => {
+        onOrderSaved();
+      }, 500); // Small delay to let UI update first
+    }
+  }, [handleDragEnd, onOrderSaved]);
 
   const handleReorderPress = (book: Book) => {
     const isReordering = reorderingBookId === book.id;
@@ -113,7 +126,7 @@ export function ReorderableBookList({
         }}
         onReorder={handleReorder}
         onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
+        onDragEnd={handleDragEndWithCallback}
         itemHeight={112}
         disabled={selectionMode}
         style={style}

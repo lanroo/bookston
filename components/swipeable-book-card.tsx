@@ -82,6 +82,7 @@ const styles = StyleSheet.create({
   container: {
     position: 'relative',
     overflow: 'hidden',
+    width: '100%',
   },
   content: {
     width: '100%',
