@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BookDetailsModal } from '@/components/book-details/book-details-modal';
+import { BookGridCard } from '@/components/book-grid-card';
 import { BookOptionsSheet } from '@/components/book-options-sheet';
 import { BookSearchModal } from '@/components/book-search-modal';
 import { EmptyState } from '@/components/empty-state';
@@ -21,6 +22,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BooksService } from '@/services/books.service';
 import type { Book, BookStatus } from '@/types';
+import { logger } from '@/utils/logger';
 
 export default function BooksScreen() {
   const backgroundColor = useThemeColor({}, 'background');
@@ -43,26 +45,34 @@ export default function BooksScreen() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedBookIds, setSelectedBookIds] = useState<Set<string>>(new Set());
   const [isDragging, setIsDragging] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const scrollViewRef = useRef<ScrollView>(null);
   const tabBarPadding = useTabBarPadding();
   const tabBarHeight = Platform.OS === 'ios' ? 88 : 64;
+  const indicatorAnim = useRef(new Animated.Value(viewMode === 'grid' ? 0 : 1)).current;
 
   const filteredBooks = activeTab === 'all' 
     ? books 
     : books.filter((book) => book.status === activeTab);
 
-  const loadBooks = useCallback(async () => {
+  const loadBooks = useCallback(async (showLoading = true) => {
     if (!user) return;
 
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       const booksData = await BooksService.getBooks();
       setBooks(booksData);
     } catch (error: any) {
-      console.error('Error loading books:', error);
-      Alert.alert('Erro', 'Não foi possível carregar os livros. Tente novamente.');
+      logger.error('Error loading books', error);
+      if (showLoading) {
+        Alert.alert('Erro', 'Não foi possível carregar os livros. Tente novamente.');
+      }
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   }, [user]);
 
@@ -143,7 +153,7 @@ export default function BooksScreen() {
               setSelectionMode(false);
               loadBooks();
             } catch (error: any) {
-              console.error('Error deleting books:', error);
+              logger.error('Error deleting books', error, { count: selectedBookIds.size });
               Alert.alert('Erro', 'Não foi possível deletar os livros.');
             }
           },
@@ -163,7 +173,7 @@ export default function BooksScreen() {
       Alert.alert('Sucesso', 'Status do livro atualizado!');
       loadBooks();
     } catch (error: any) {
-      console.error('Error updating book status:', error);
+      logger.error('Error updating book status', error, { bookId: book.id, status });
       Alert.alert('Erro', 'Não foi possível atualizar o status do livro.');
     }
   };
@@ -183,7 +193,7 @@ export default function BooksScreen() {
               Alert.alert('Sucesso', 'Livro deletado com sucesso!');
               loadBooks();
             } catch (error: any) {
-              console.error('Error deleting book:', error);
+              logger.error('Error deleting book', error, { bookId: book.id });
               Alert.alert('Erro', 'Não foi possível deletar o livro.');
             }
           },
@@ -208,6 +218,15 @@ export default function BooksScreen() {
       router.setParams({ add: undefined });
     }
   }, [params.add]);
+
+  useEffect(() => {
+    Animated.spring(indicatorAnim, {
+      toValue: viewMode === 'grid' ? 0 : 1,
+      useNativeDriver: true,
+      tension: 100,
+      friction: 8,
+    }).start();
+  }, [viewMode, indicatorAnim]);
 
   const rightAction = selectionMode ? (
     <TouchableOpacity
@@ -242,6 +261,62 @@ export default function BooksScreen() {
 
       <TabSelector tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
+      {filteredBooks.length > 0 && !selectionMode && (
+        <ThemedView style={[styles.toolbar, { backgroundColor, borderBottomColor: textColor + '10' }]}>
+          <ThemedView style={styles.toolbarContent}>
+            <ThemedView style={styles.toolbarLeft}>
+              <ThemedText style={[styles.toolbarTitle, { color: textColor }]}>
+                {filteredBooks.length} {filteredBooks.length === 1 ? 'livro' : 'livros'}
+              </ThemedText>
+            </ThemedView>
+            <ThemedView style={[styles.segmentedControl, { 
+              backgroundColor: colorScheme === 'dark' ? textColor + '08' : textColor + '05',
+              borderColor: textColor + '15',
+              shadowColor: colorScheme === 'dark' ? '#000' : '#000',
+            }]}>
+              <Animated.View
+                style={[
+                  styles.segmentedIndicator,
+                  {
+                    backgroundColor: tintColor,
+                    shadowColor: tintColor,
+                    transform: [
+                      {
+                        translateX: indicatorAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [2, 50],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              />
+              <TouchableOpacity
+                style={styles.segmentedButton}
+                onPress={() => setViewMode('grid')}
+                activeOpacity={0.7}>
+                <Ionicons
+                  name="grid"
+                  size={19}
+                  color={viewMode === 'grid' ? (colorScheme === 'dark' ? '#000' : '#fff') : textColor + '60'}
+                />
+              </TouchableOpacity>
+              <ThemedView style={[styles.segmentedDivider, { backgroundColor: textColor + '15' }]} />
+              <TouchableOpacity
+                style={styles.segmentedButton}
+                onPress={() => setViewMode('list')}
+                activeOpacity={0.7}>
+                <Ionicons
+                  name="list"
+                  size={19}
+                  color={viewMode === 'list' ? (colorScheme === 'dark' ? '#000' : '#fff') : textColor + '60'}
+                />
+              </TouchableOpacity>
+            </ThemedView>
+          </ThemedView>
+        </ThemedView>
+      )}
+
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
@@ -274,6 +349,28 @@ export default function BooksScreen() {
               onPress: handleAddBook,
             }}
           />
+        ) : viewMode === 'grid' ? (
+          <ThemedView style={styles.booksGrid}>
+            {filteredBooks.map((book) => {
+              const isSelected = selectedBookIds.has(book.id);
+              return (
+                <BookGridCard
+                  key={book.id}
+                  book={book}
+                  isSelected={isSelected}
+                  selectionMode={selectionMode}
+                  backgroundColor={backgroundColor}
+                  textColor={textColor}
+                  tintColor={tintColor}
+                  onPress={() => {
+                    handleBookPress(book);
+                  }}
+                  onLongPress={() => handleBookLongPress(book)}
+                  onOptionsPress={() => handleBookOptions(book)}
+                />
+              );
+            })}
+          </ThemedView>
         ) : selectionMode ? (
           <ThemedView style={styles.booksList}>
             {filteredBooks.map((book) => {
@@ -315,6 +412,7 @@ export default function BooksScreen() {
             style={styles.booksList}
             enabled={!selectionMode}
             onDraggingChange={setIsDragging}
+            onOrderSaved={() => loadBooks(false)}
           />
         )}
       </ScrollView>
@@ -411,7 +509,78 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
   },
+  toolbar: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  toolbarContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  toolbarLeft: {
+    flex: 1,
+  },
+  toolbarTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 3,
+    width: 104,
+    height: 40,
+    position: 'relative',
+    overflow: 'hidden',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  segmentedIndicator: {
+    position: 'absolute',
+    left: 2,
+    top: 2,
+    width: 48,
+    height: 34,
+    borderRadius: 8,
+    zIndex: 0,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  segmentedButton: {
+    flex: 1,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+    borderRadius: 8,
+  },
+  segmentedDivider: {
+    width: 1,
+    height: 20,
+    zIndex: 1,
+    marginVertical: 6,
+  },
   booksList: {
+    gap: 12,
+  },
+  booksGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
   },
   selectionBarContainer: {

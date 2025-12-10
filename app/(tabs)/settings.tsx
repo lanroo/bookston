@@ -71,7 +71,7 @@ export default function SettingsScreen() {
           label: 'Notificações por Email',
           value: 'Ativado',
           onPress: () => {
-            console.log('Configurar email');
+            // TODO: Implementar configuração de email
           },
         },
       ],
@@ -84,21 +84,21 @@ export default function SettingsScreen() {
           label: 'Backup Automático',
           value: 'Ativado',
           onPress: () => {
-            console.log('Configurar backup');
+            // TODO: Implementar configuração de backup
           },
         },
         {
           icon: 'download-outline',
           label: 'Exportar Dados',
           onPress: () => {
-            console.log('Exportar dados');
+            // TODO: Implementar exportação de dados
           },
         },
         {
           icon: 'trash-outline',
           label: 'Limpar Cache',
           onPress: () => {
-            console.log('Limpar cache');
+            // TODO: Implementar limpeza de cache
           },
         },
       ],
@@ -110,28 +110,28 @@ export default function SettingsScreen() {
           icon: 'information-circle-outline',
           label: 'Sobre o App',
           onPress: () => {
-            console.log('Sobre o app');
+            // TODO: Implementar tela sobre o app
           },
         },
         {
           icon: 'help-circle-outline',
           label: 'Ajuda e Suporte',
           onPress: () => {
-            console.log('Ajuda');
+            // TODO: Implementar tela de ajuda
           },
         },
         {
           icon: 'document-text-outline',
           label: 'Termos de Uso',
           onPress: () => {
-            console.log('Termos de uso');
+            // TODO: Implementar tela de termos de uso
           },
         },
         {
           icon: 'shield-checkmark-outline',
           label: 'Política de Privacidade',
           onPress: () => {
-            console.log('Política de privacidade');
+            // TODO: Implementar tela de política de privacidade
           },
         },
       ],

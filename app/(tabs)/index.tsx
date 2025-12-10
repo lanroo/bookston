@@ -1,11 +1,13 @@
+import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { FeedSection, GenreButtons, type FeedPost as FeedPostType, type Genre } from '@/components/home';
+import { FeedSection, GenreButtons, SearchBar, type FeedPost as FeedPostType, type Genre } from '@/components/home';
 import { PostOptionsSheet } from '@/components/social';
 import { useTabBarPadding } from '@/components/tab-bar';
 import { ThemedText } from '@/components/themed-text';
@@ -33,6 +35,8 @@ export default function HomeScreen() {
   const [userPoints, setUserPoints] = useState<{ totalPoints: number; level: number }>({ totalPoints: 0, level: 1 });
   const [optionsSheetVisible, setOptionsSheetVisible] = useState(false);
   const [selectedPostForOptions, setSelectedPostForOptions] = useState<Post | null>(null);
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
 
   const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuário';
 
@@ -56,15 +60,22 @@ export default function HomeScreen() {
   };
 
   const loadFeedPosts = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      // Clear feed when user is not available
+      setFeedPosts([]);
+      return;
+    }
 
     setIsLoading(true);
+    // Clear previous feed immediately when user changes
+    setFeedPosts([]);
     try {
       const posts = await PostsService.getPosts(20, 0);
       const mappedPosts = posts.map(mapPostToFeedPost);
       setFeedPosts(mappedPosts);
     } catch (error) {
       logger.error('Error loading feed posts', error);
+      setFeedPosts([]);
     } finally {
       setIsLoading(false);
     }
@@ -82,25 +93,71 @@ export default function HomeScreen() {
     }
   }, [user]);
 
+  const loadUserAvatar = useCallback(async () => {
+    if (!user) {
+      setUserAvatarUrl(null);
+      setAvatarLoadError(false);
+      return;
+    }
+    try {
+      // Try to get from profiles table first
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profile?.avatar_url) {
+        setUserAvatarUrl(profile.avatar_url);
+        setAvatarLoadError(false);
+      } else if (user.user_metadata?.avatar_url) {
+        setUserAvatarUrl(user.user_metadata.avatar_url);
+        setAvatarLoadError(false);
+      } else {
+        setUserAvatarUrl(null);
+        setAvatarLoadError(false);
+      }
+    } catch (error) {
+      // Fallback to user metadata
+      if (user.user_metadata?.avatar_url) {
+        setUserAvatarUrl(user.user_metadata.avatar_url);
+        setAvatarLoadError(false);
+      } else {
+        setUserAvatarUrl(null);
+        setAvatarLoadError(false);
+      }
+    }
+  }, [user]);
+
+  // Clear feed when user changes
+  useEffect(() => {
+    // Clear feed immediately when user ID changes
+    setFeedPosts([]);
+    setUserPoints({ totalPoints: 0, level: 1 });
+  }, [user?.id]);
+
   useFocusEffect(
     useCallback(() => {
-      loadFeedPosts();
-      loadUserPoints();
-
-      setPointsRefreshKey((prev: number) => prev + 1);
-    }, [loadFeedPosts, loadUserPoints])
+      if (user) {
+        loadFeedPosts();
+        loadUserPoints();
+        setPointsRefreshKey((prev: number) => prev + 1);
+      }
+    }, [loadFeedPosts, loadUserPoints, user])
   );
 
   const handleGenrePress = (genre: Genre) => {
     // Toggle selection - se já está selecionado, deseleciona
     setSelectedGenreId(selectedGenreId === genre.id ? undefined : genre.id);
     // TODO: Implementar navegação para filtro por gênero
-    console.log('Genre pressed:', genre);
   };
 
   const handlePostPress = (post: FeedPostType) => {
     // TODO: Implementar navegação para detalhes do post
-    console.log('Post pressed:', post);
+    // router.push({
+    //   pathname: '/post-details',
+    //   params: { postId: post.id },
+    // });
   };
 
   const handleLike = async (post: FeedPostType) => {
@@ -178,6 +235,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
+      <SearchBar />
       <View style={[styles.header, { backgroundColor }]}>
         <View style={styles.headerContent}>
           <View style={styles.headerTop}>
@@ -188,10 +246,41 @@ export default function HomeScreen() {
               </ThemedText>
             </View>
             <TouchableOpacity
-              style={[styles.avatarContainer, { backgroundColor: tintColor + '20' }]}
+              style={[
+                styles.avatarContainer, 
+                { 
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.15)' : tintColor + '20',
+                }
+              ]}
               onPress={() => router.push('/profile')}
               activeOpacity={0.7}>
-              <Ionicons name="person" size={22} color={tintColor} />
+              {userAvatarUrl && !avatarLoadError ? (
+                <Image
+                  source={{ 
+                    uri: userAvatarUrl.includes('?t=') 
+                      ? userAvatarUrl 
+                      : `${userAvatarUrl}?t=${Date.now()}`,
+                  }}
+                  style={styles.avatarImage}
+                  contentFit="cover"
+                  transition={200}
+                  placeholderContentFit="cover"
+                  cachePolicy="memory-disk"
+                  recyclingKey={userAvatarUrl}
+                  onError={() => {
+                    setAvatarLoadError(true);
+                  }}
+                  onLoad={() => {
+                    setAvatarLoadError(false);
+                  }}
+                />
+              ) : (
+                <Ionicons 
+                  name="person" 
+                  size={22} 
+                  color={isDark ? 'rgba(255, 255, 255, 0.9)' : tintColor} 
+                />
+              )}
             </TouchableOpacity>
           </View>
           <TouchableOpacity
@@ -217,8 +306,18 @@ export default function HomeScreen() {
                     </ThemedText>
                   </View>
                 </View>
-                <View style={[styles.levelBadge, { backgroundColor: tintColor }]}>
-                  <ThemedText style={styles.levelText}>Nv. {userPoints.level}</ThemedText>
+                <View style={[
+                  styles.levelBadge, 
+                  { 
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.15)' : tintColor,
+                    borderWidth: isDark ? 1 : 0,
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                  }
+                ]}>
+                  <ThemedText style={[
+                    styles.levelText,
+                    { color: '#FFFFFF' }
+                  ]}>Nv. {userPoints.level}</ThemedText>
                 </View>
               </View>
             </LinearGradient>
@@ -313,6 +412,11 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   pointsCard: {
     borderRadius: 16,

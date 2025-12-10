@@ -20,6 +20,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { NotesService } from '@/services/notes.service';
 import type { Folder, Note } from '@/types';
+import { logger } from '@/utils/logger';
 import { notesStyles as styles } from './notes.styles';
 
 export default function NotesScreen() {
@@ -61,7 +62,7 @@ export default function NotesScreen() {
       setNotes(notesData);
       setFolders(foldersData);
     } catch (error: any) {
-      console.error('Error loading data:', error);
+      logger.error('Error loading notes data', error);
       Alert.alert('Erro', 'Não foi possível carregar os dados. Tente novamente.');
     } finally {
       setLoading(false);
@@ -338,7 +339,7 @@ export default function NotesScreen() {
                       icon: 'folder',
                       label: 'Criar Pasta',
                       onPress: () => {  
-                        console.log('Criar pasta');
+                        // TODO: Implementar criação de pasta
                       },
                     }
                   : undefined
