@@ -36,11 +36,11 @@ const GENRES: Genre[] = [
     imageUrl: require('@/assets/icons/heartt.png'),
   },
   {
-    id: 'thriller',
-    label: 'Thriller',
-    icon: 'cloud',
-    color: '#000000',
-    gradient: ['#1A1A1A', '#000000'],
+    id: 'fantasia',
+    label: 'Fantasia',
+    icon: 'sparkles',
+    color: '#AF52DE',
+    gradient: ['#AF52DE', '#C77AFF'],
   },
   {
     id: 'ficcao',
@@ -50,11 +50,11 @@ const GENRES: Genre[] = [
     gradient: ['#5AC8FA', '#7DD3FF'],
   },
   {
-    id: 'fantasia',
-    label: 'Fantasia',
-    icon: 'sparkles',
-    color: '#AF52DE',
-    gradient: ['#AF52DE', '#C77AFF'],
+    id: 'thriller',
+    label: 'Thriller',
+    icon: 'cloud',
+    color: '#000000',
+    gradient: ['#1A1A1A', '#000000'],
   },
   {
     id: 'misterio',
@@ -81,8 +81,8 @@ const GENRES: Genre[] = [
     id: 'poesia',
     label: 'Poesia',
     icon: 'create',
-    color: '#FF2D55',
-    gradient: ['#FF2D55', '#FF5A7A'],
+    color: '#D4A000',
+    gradient: ['#D4A000', '#B8860B'],
   },
 ];
 

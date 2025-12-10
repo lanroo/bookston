@@ -1,7 +1,4 @@
-/**
- * Search Service
- * Unified search service for users, books, authors, and publishers
- */
+
 
 import { supabase } from '@/lib/supabase';
 import { BookSearchService } from '@/services/book-search.service';
@@ -51,10 +48,10 @@ export class SearchService {
 
     try {
       const [users, books, authors, publishers] = await Promise.allSettled([
-        searchUsers ? this.searchUsers(query, Math.ceil(limit / 4)) : Promise.resolve([]),
-        searchBooks ? this.searchBooks(query, Math.ceil(limit / 4)) : Promise.resolve([]),
-        searchAuthors ? this.searchAuthors(query, Math.ceil(limit / 4)) : Promise.resolve([]),
-        searchPublishers ? this.searchPublishers(query, Math.ceil(limit / 4)) : Promise.resolve([]),
+        searchUsers ? this.searchUsers(query, Math.ceil(limit / 2)) : Promise.resolve([]),
+        searchBooks ? this.searchBooks(query, limit) : Promise.resolve([]),
+        searchAuthors ? this.searchAuthors(query, Math.ceil(limit / 3)) : Promise.resolve([]),
+        searchPublishers ? this.searchPublishers(query, Math.ceil(limit / 3)) : Promise.resolve([]),
       ]);
 
       return {
@@ -132,9 +129,6 @@ export class SearchService {
     }
   }
 
-  /**
-   * Search for books using BookSearchService
-   */
   private static async searchBooks(query: string, limit: number): Promise<SearchResult[]> {
     try {
       const books = await BookSearchService.searchBooks(query, limit);

@@ -61,13 +61,12 @@ export default function HomeScreen() {
 
   const loadFeedPosts = useCallback(async () => {
     if (!user) {
-      // Clear feed when user is not available
+  
       setFeedPosts([]);
       return;
     }
 
     setIsLoading(true);
-    // Clear previous feed immediately when user changes
     setFeedPosts([]);
     try {
       const posts = await PostsService.getPosts(20, 0);
@@ -100,7 +99,6 @@ export default function HomeScreen() {
       return;
     }
     try {
-      // Try to get from profiles table first
       const { data: profile } = await supabase
         .from('profiles')
         .select('avatar_url')
@@ -118,7 +116,6 @@ export default function HomeScreen() {
         setAvatarLoadError(false);
       }
     } catch (error) {
-      // Fallback to user metadata
       if (user.user_metadata?.avatar_url) {
         setUserAvatarUrl(user.user_metadata.avatar_url);
         setAvatarLoadError(false);
@@ -235,30 +232,49 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
-      <SearchBar />
-      <View style={[styles.header, { backgroundColor }]}>
-        <View style={styles.headerContent}>
-          <View style={styles.headerTop}>
-            <View style={styles.headerInfo}>
-              <ThemedText style={styles.greeting}>Olá,</ThemedText>
-              <ThemedText type="title" style={styles.userName}>
-                {userName}
-              </ThemedText>
-            </View>
+
+      <View style={styles.headerSection}>
+
+        <View style={styles.headerTopRow}>
+          <View style={styles.greetingContainer}>
+            <ThemedText style={[
+              styles.greeting, 
+              { color: isDark ? 'rgba(255, 255, 255, 0.5)' : textColor }
+            ]}>
+              Olá,
+            </ThemedText>
+            <ThemedText 
+              type="title" 
+              style={[
+                styles.userName,
+                { color: textColor }
+              ]}
+              numberOfLines={1}>
+              {userName}
+            </ThemedText>
+          </View>
+          
+          <View style={styles.headerActions}>
+            <SearchBar />
             <TouchableOpacity
               style={[
-                styles.avatarContainer, 
-                { 
-                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.15)' : tintColor + '20',
-                }
+                styles.avatarContainer,
+                {
+                  backgroundColor: isDark 
+                    ? 'rgba(255, 255, 255, 0.12)' 
+                    : 'rgba(0, 0, 0, 0.04)',
+                  borderColor: isDark 
+                    ? 'rgba(255, 255, 255, 0.15)' 
+                    : 'rgba(0, 0, 0, 0.08)',
+                },
               ]}
               onPress={() => router.push('/profile')}
               activeOpacity={0.7}>
               {userAvatarUrl && !avatarLoadError ? (
                 <Image
-                  source={{ 
-                    uri: userAvatarUrl.includes('?t=') 
-                      ? userAvatarUrl 
+                  source={{
+                    uri: userAvatarUrl.includes('?t=')
+                      ? userAvatarUrl
                       : `${userAvatarUrl}?t=${Date.now()}`,
                   }}
                   style={styles.avatarImage}
@@ -275,54 +291,96 @@ export default function HomeScreen() {
                   }}
                 />
               ) : (
-                <Ionicons 
-                  name="person" 
-                  size={22} 
-                  color={isDark ? 'rgba(255, 255, 255, 0.9)' : tintColor} 
+                <Ionicons
+                  name="person"
+                  size={20}
+                  color={isDark ? 'rgba(255, 255, 255, 0.8)' : tintColor}
                 />
               )}
             </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={styles.pointsCard}
-            onPress={() => router.push('/profile')}
-            activeOpacity={0.8}>
-            <LinearGradient
-              colors={isDark ? [tintColor + '20', tintColor + '10'] : [tintColor + '15', tintColor + '08']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.pointsGradient}>
-              <View style={styles.pointsContent}>
-                <View style={styles.pointsLeft}>
-                  <View style={[styles.trophyIcon, { backgroundColor: tintColor + '25' }]}>
-                    <Ionicons name="trophy" size={20} color={tintColor} />
-                  </View>
-                  <View style={styles.pointsTextContainer}>
-                    <ThemedText style={[styles.pointsLabel, { color: textColor, opacity: 0.7 }]}>
-                      Seus Pontos
-                    </ThemedText>
-                    <ThemedText style={[styles.pointsValue, { color: textColor }]}>
-                      {userPoints.totalPoints.toLocaleString()} pts
-                    </ThemedText>
-                  </View>
-                </View>
-                <View style={[
-                  styles.levelBadge, 
-                  { 
-                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.15)' : tintColor,
-                    borderWidth: isDark ? 1 : 0,
-                    borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                  }
-                ]}>
-                  <ThemedText style={[
-                    styles.levelText,
-                    { color: '#FFFFFF' }
-                  ]}>Nv. {userPoints.level}</ThemedText>
-                </View>
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          style={styles.pointsCardWrapper}
+          onPress={() => router.push('/profile')}
+          activeOpacity={0.95}>
+          <LinearGradient
+            colors={
+              isDark
+                ? ['#1A1A2E', '#16213E', '#1A1A2E']
+                : ['#FFFFFF', '#F5F7FA', '#FFFFFF']
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[
+              styles.pointsCard,
+              {
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+              },
+            ]}>
+            
+            <View style={styles.pointsMainRow}>
+              <View style={styles.trophyContainer}>
+                <LinearGradient
+                  colors={['#FFD700', '#FFC107', '#FFB300']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.trophyBg}>
+                  <Ionicons name="trophy" size={24} color="#FFFFFF" />
+                </LinearGradient>
+              </View>
+
+              {/* Points Info */}
+              <View style={styles.pointsInfo}>
+                <ThemedText 
+                  style={[
+                    styles.pointsLabel, 
+                    { color: isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)' }
+                  ]}>
+                  MEUS PONTOS
+                </ThemedText>
+                <ThemedText style={[styles.pointsValue, { color: textColor }]}>
+                  {userPoints.totalPoints.toLocaleString()}
+                  <ThemedText style={[styles.pointsUnit, { color: isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.4)' }]}>
+                    {' '}pts
+                  </ThemedText>
+                </ThemedText>
+              </View>
+
+              <View style={styles.levelContainer}>
+                <LinearGradient
+                  colors={[tintColor, tintColor + 'DD']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.levelBadge}>
+                  <ThemedText style={styles.levelNumber}>{userPoints.level}</ThemedText>
+                </LinearGradient>
+                <ThemedText style={[styles.levelLabel, { color: isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.4)' }]}>
+                  NÍVEL
+                </ThemedText>
+              </View>
+            </View>
+
+            <View style={styles.progressSection}>
+              <View style={[styles.progressBar, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)' }]}>
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { 
+                      width: `${Math.min((userPoints.totalPoints % 1000) / 10, 100)}%`,
+                      backgroundColor: tintColor,
+                    }
+                  ]} 
+                />
+              </View>
+              <ThemedText style={[styles.progressLabel, { color: isDark ? 'rgba(255, 255, 255, 0.35)' : 'rgba(0, 0, 0, 0.4)' }]}>
+                {1000 - (userPoints.totalPoints % 1000)} pts para nível {userPoints.level + 1}
+              </ThemedText>
+            </View>
+
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.genresSection}>
@@ -375,111 +433,138 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
+  headerSection: {
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 16,
     paddingBottom: 20,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+    gap: 20,
   },
-  headerContent: {
-    gap: 16,
-  },
-  headerTop: {
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 16,
   },
-  headerInfo: {
+  greetingContainer: {
     flex: 1,
     gap: 2,
   },
   greeting: {
     fontSize: 14,
-    opacity: 0.6,
-    marginBottom: 2,
     fontWeight: '500',
-    letterSpacing: -0.2,
+    letterSpacing: 0.2,
+    opacity: 0.6,
   },
   userName: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700',
     letterSpacing: -0.5,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   avatarContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+    borderWidth: 1.5,
   },
   avatarImage: {
     width: '100%',
     height: '100%',
   },
-  pointsCard: {
-    borderRadius: 16,
+  pointsCardWrapper: {
+    borderRadius: 20,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  pointsGradient: {
-    padding: 16,
-    borderRadius: 16,
-  },
-  pointsContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  pointsLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  trophyIcon: {
-    width: 40,
-    height: 40,
+  pointsCard: {
+    padding: 18,
     borderRadius: 20,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  pointsMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  trophyContainer: {
+    marginRight: 14,
+  },
+  trophyBg: {
+    width: 50,
+    height: 50,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  pointsTextContainer: {
+  pointsInfo: {
     flex: 1,
-    gap: 4,
   },
   pointsLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    letterSpacing: -0.2,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1,
+    marginBottom: 2,
   },
   pointsValue: {
-    fontSize: 18,
+    fontSize: 26,
     fontWeight: '700',
-    letterSpacing: -0.3,
-    marginTop: 2,
+    letterSpacing: -0.5,
+  },
+  pointsUnit: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  levelContainer: {
+    alignItems: 'center',
   },
   levelBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    minWidth: 50,
-    alignItems: 'center',
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  levelText: {
+  levelNumber: {
+    fontSize: 20,
+    fontWeight: '800',
     color: '#FFFFFF',
-    fontSize: 13,
+  },
+  levelLabel: {
+    fontSize: 9,
     fontWeight: '700',
-    letterSpacing: -0.2,
+    letterSpacing: 0.8,
+  },
+  progressSection: {
+    marginTop: 2,
+  },
+  progressBar: {
+    height: 5,
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  progressLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    textAlign: 'center',
+    letterSpacing: 0.2,
   },
   genresSection: {
     marginBottom: 24,
