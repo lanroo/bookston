@@ -1,5 +1,6 @@
 import { BookSearchService } from '@/services/book-search.service';
 import type { BookRecommendation, BookSearchResult, UserPreferences } from '@/types';
+import { logger } from '@/utils/logger';
 import { BookFilterService } from './book-filter.service';
 import { UserPreferencesService } from './user-preferences.service';
 
@@ -81,7 +82,7 @@ export class BookRecommendationsService {
             });
           }
         } catch (error) {
-          console.error(`Error searching books by author ${author}:`, error);
+          logger.error('Error searching books by author', error, { author });
         }
       }
 
@@ -111,7 +112,7 @@ export class BookRecommendationsService {
             }
           }
         } catch (error) {
-          console.error(`Error searching similar books to ${userBook.title}:`, error);
+          logger.error('Error searching similar books', error, { bookTitle: userBook.title });
         }
       }
 
@@ -146,7 +147,7 @@ export class BookRecommendationsService {
               });
             }
           } catch (error) {
-            console.error(`Error searching similar author books:`, error);
+            logger.error('Error searching similar author books', error, { author });
           }
         }
       }
@@ -155,7 +156,7 @@ export class BookRecommendationsService {
         .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
         .slice(0, limit);
     } catch (error) {
-      console.error('Error getting recommendations:', error);
+      logger.error('Error getting recommendations', error, { limit });
       return this.getPopularRecommendations(limit);
     }
   }
@@ -187,13 +188,13 @@ export class BookRecommendationsService {
             }
           }
         } catch (error) {
-          console.error(`Error searching popular books:`, error);
+          logger.error('Error searching popular books', error, { query });
         }
       }
 
       return recommendations.slice(0, limit);
     } catch (error) {
-      console.error('Error getting popular recommendations:', error);
+      logger.error('Error getting popular recommendations', error, { limit });
       return [];
     }
   }
@@ -281,7 +282,7 @@ export class BookRecommendationsService {
         .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
         .slice(0, limit);
     } catch (error) {
-      console.error('Error getting similar books:', error);
+      logger.error('Error getting similar books', error, { bookTitle, author, limit });
       return [];
     }
   }

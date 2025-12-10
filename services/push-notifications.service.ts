@@ -1,3 +1,4 @@
+import { logger } from '@/utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
@@ -46,7 +47,7 @@ export class PushNotificationsService {
 
       return finalStatus === 'granted';
     } catch (error) {
-      console.error('Error requesting notification permissions:', error);
+      logger.error('Error requesting notification permissions', error);
       return false;
     }
   }
@@ -82,7 +83,7 @@ export class PushNotificationsService {
       const projectId = this.getProjectId();
       
       if (!projectId) {
-        console.warn('Push notifications: No projectId found. Remote push notifications are not available, but local notifications will work.');
+        logger.warn('Push notifications: No projectId found. Remote push notifications are not available, but local notifications will work.');
         return null;
       }
 
@@ -95,13 +96,13 @@ export class PushNotificationsService {
 
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes('projectId')) {
-          console.warn('Push notifications: Unable to get push token. Local notifications will still work.');
+          logger.warn('Push notifications: Unable to get push token. Local notifications will still work.');
           return null;
         }
         throw error;
       }
     } catch (error) {
-      console.error('Error registering for push notifications:', error);
+      logger.error('Error registering for push notifications', error);
       return null;
     }
   }
@@ -114,7 +115,7 @@ export class PushNotificationsService {
     try {
       return await AsyncStorage.getItem(EXPO_PUSH_TOKEN_KEY);
     } catch (error) {
-      console.error('Error getting stored token:', error);
+      logger.error('Error getting stored token', error);
       return null;
     }
   }
@@ -128,7 +129,7 @@ export class PushNotificationsService {
       const value = await AsyncStorage.getItem(NOTIFICATION_ENABLED_KEY);
       return value === 'true';
     } catch (error) {
-      console.error('Error checking notification status:', error);
+      logger.error('Error checking notification status', error);
       return false;
     }
   }
@@ -148,14 +149,14 @@ export class PushNotificationsService {
     try {
       await this.registerForPushNotifications();
     } catch (error) {
-      console.error('Error registering push token (local notifications will still work):', error);
+      logger.error('Error registering push token (local notifications will still work)', error);
     }
 
     try {
       await AsyncStorage.setItem(NOTIFICATION_ENABLED_KEY, 'true');
       return true;
     } catch (error) {
-      console.error('Error saving notification settings:', error);
+      logger.error('Error saving notification settings', error);
       return false;
     }
   }
@@ -166,7 +167,7 @@ export class PushNotificationsService {
       await AsyncStorage.setItem(NOTIFICATION_ENABLED_KEY, 'false');
       await Notifications.cancelAllScheduledNotificationsAsync();
     } catch (error) {
-      console.error('Error disabling push notifications:', error);
+      logger.error('Error disabling push notifications', error);
     }
   }
 
@@ -193,7 +194,7 @@ export class PushNotificationsService {
       });
       return identifier;
     } catch (error) {
-      console.error('Error scheduling notification:', error);
+      logger.error('Error scheduling notification', error, { title, body });
       return null;
     }
   }
@@ -206,7 +207,7 @@ export class PushNotificationsService {
     try {
       await Notifications.cancelScheduledNotificationAsync(identifier);
     } catch (error) {
-      console.error('Error canceling notification:', error);
+      logger.error('Error canceling notification', error, { identifier });
     }
   }
 
@@ -215,7 +216,7 @@ export class PushNotificationsService {
     try {
       await Notifications.cancelAllScheduledNotificationsAsync();
     } catch (error) {
-      console.error('Error canceling all notifications:', error);
+      logger.error('Error canceling all notifications', error);
     }
   }
 
@@ -228,8 +229,7 @@ export class PushNotificationsService {
       const { status } = await Notifications.getPermissionsAsync();
       return status;
     } catch (error) {
-      console.error('Error getting permission status:', error);
-
+      logger.error('Error getting permission status', error);
       return Notifications.PermissionStatus.UNDETERMINED;
     }
   }

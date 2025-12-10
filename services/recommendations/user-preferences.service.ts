@@ -1,5 +1,6 @@
 import { BooksService } from '@/services/books.service';
 import type { UserPreferences } from '@/types';
+import { logger } from '@/utils/logger';
 
 export class UserPreferencesService {
   static async analyzePreferences(): Promise<UserPreferences> {
@@ -120,7 +121,7 @@ export class UserPreferencesService {
         recentBooks,
       };
     } catch (error) {
-      console.error('Error analyzing user preferences:', error);
+      logger.error('Error analyzing user preferences', error);
       return {
         favoriteAuthors: [],
         favoriteGenres: [],
@@ -155,7 +156,7 @@ export class UserPreferencesService {
 
       return keywords;
     } catch (error) {
-      console.error('Error getting search keywords:', error);
+      logger.error('Error getting search keywords', error);
       return [];
     }
   }
