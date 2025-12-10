@@ -20,6 +20,23 @@ export class PostsService {
 
 
   private static async getUserProfile(userId: string): Promise<{ name: string; username?: string; avatar?: string }> {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, username, avatar_url')
+        .eq('user_id', userId)
+        .single();
+
+      if (profile) {
+        return {
+          name: profile.name || 'Usuário',
+          username: profile.username || undefined,
+          avatar: profile.avatar_url || undefined,
+        };
+      }
+    } catch (error) {
+      logger.warn('Could not get profile from profiles table, using auth metadata', { error, userId });
+    }
     const { data: { user } } = await supabase.auth.getUser();
     if (user?.id === userId) {
       return {

@@ -105,14 +105,13 @@ export function useReorderBooks({
       if (originalIds !== newIds) {
         pendingOrderRef.current = null;
         
-        try {
-          await saveOrder(orderToSave);
-          setReorderedBooks(orderToSave);
-          setReorderingBookId(null);
-        } catch (error) {
+        setReorderedBooks(orderToSave);
+        setReorderingBookId(null);
+          
+        saveOrder(orderToSave).catch((error) => {
+          logger.error('Error saving books order in background', error);
           setReorderedBooks([...books]);
-          setReorderingBookId(null);
-        }
+        });
       } else {
         pendingOrderRef.current = null;
         setReorderingBookId(null);
