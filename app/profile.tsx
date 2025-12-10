@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EditProfileModal } from '@/components/profile/edit-profile-modal';
-import { SignOutButton } from '@/components/settings';
 import { PointsDisplay } from '@/components/social';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -13,50 +13,87 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { supabase } from '@/lib/supabase';
-import { BooksService } from '@/services/books.service';
-import { NotesService } from '@/services/notes.service';
-import type { Book } from '@/types';
+import { FollowsService, type FollowStats } from '@/services/follows.service';
+import { PostsService } from '@/services/posts.service';
+import type { Post } from '@/types';
+import { logger } from '@/utils/logger';
 
 export default function ProfileScreen() {
+  const { user } = useAuth();
   const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
-  const { user } = useAuth();
 
-  const [notes, setNotes] = useState<any[]>([]);
-  const [folders, setFolders] = useState<any[]>([]);
-  const [books, setBooks] = useState<Book[]>([]);
+  const [userProfile, setUserProfile] = useState<{
+    id: string;
+    name: string;
+    username?: string;
+    avatarUrl?: string;
+    bio?: string;
+  } | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [followStats, setFollowStats] = useState<FollowStats>({
+    followersCount: 0,
+    followingCount: 0,
+    isFollowing: false,
+  });
   const [loading, setLoading] = useState(true);
   const [pointsRefreshKey, setPointsRefreshKey] = useState(0);
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [userName, setUserName] = useState(user?.user_metadata?.name || 'Usuário');
-  const [userUsername, setUserUsername] = useState(user?.user_metadata?.username || '');
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
 
-  const userEmail = user?.email || '';
-
-  useEffect(() => {
-    if (user) {
-      setUserName(user.user_metadata?.name || 'Usuário');
-      setUserUsername(user.user_metadata?.username || '');
-    }
-  }, [user]);
-
-  const loadData = useCallback(async () => {
+  const loadProfile = useCallback(async () => {
     if (!user) return;
 
     try {
-      const [notesData, foldersData, booksData] = await Promise.all([
-        NotesService.getNotes(),
-        NotesService.getFolders(),
-        BooksService.getBooks(),
-      ]);
+      setLoading(true);
 
-      setNotes(notesData);
-      setFolders(foldersData);
-      setBooks(booksData);
-    } catch (error: any) {
-      console.error('Error loading data:', error);
+      // Load profile from profiles table
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('user_id, name, username, avatar_url, bio')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileError) {
+        // Fallback to auth metadata
+        setUserProfile({
+          id: user.id,
+          name: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
+          username: user.user_metadata?.username,
+          avatarUrl: user.user_metadata?.avatar_url,
+          bio: undefined,
+        });
+      } else {
+        setUserProfile({
+          id: profile.user_id,
+          name: profile.name,
+          username: profile.username || undefined,
+          avatarUrl: profile.avatar_url || undefined,
+          bio: profile.bio || undefined,
+        });
+      }
+
+      // Load user's posts
+      try {
+        const userPosts = await PostsService.getPostsByUserId(user.id, 10, 0);
+        setPosts(userPosts);
+      } catch (error) {
+        logger.warn('Could not load user posts', { error });
+        setPosts([]);
+      }
+
+      // Load follow stats
+      try {
+        const stats = await FollowsService.getFollowStats(user.id);
+        setFollowStats(stats);
+      } catch (error) {
+        logger.warn('Could not load follow stats', { error });
+      }
+    } catch (error) {
+      logger.error('Error loading profile', error, { userId: user.id });
     } finally {
       setLoading(false);
     }
@@ -64,51 +101,56 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
+      loadProfile();
       setPointsRefreshKey((prev) => prev + 1);
-    }, [loadData])
+    }, [loadProfile])
   );
 
-
-  const handleProfileSave = async (name: string, username: string) => {
-    setUserName(name);
-    setUserUsername(username);
-      const { data: { user: updatedUser } } = await supabase.auth.getUser();
+  const handleProfileSave = async (name: string, username: string, avatarUrl?: string | null) => {
+    if (userProfile) {
+      setUserProfile({
+        ...userProfile,
+        name,
+        username,
+        avatarUrl: avatarUrl || undefined,
+      });
+    }
+    // Refresh profile data
+    await loadProfile();
+    const { data: { user: updatedUser } } = await supabase.auth.getUser();
     if (updatedUser) {
       await supabase.auth.refreshSession();
     }
   };
 
-  const menuItems = [
-    {
-      icon: 'person-outline',
-      label: 'Editar Perfil',
-      onPress: () => {
-        setEditModalVisible(true);
-      },
-    },
-    {
-      icon: 'settings-outline',
-      label: 'Configurações',
-      onPress: () => {
-        router.push('/(tabs)/settings');
-      },
-    },
-    {
-      icon: 'help-circle-outline',
-      label: 'Ajuda',
-      onPress: () => {
-        console.log('Ajuda');
-      },
-    },
-    {
-      icon: 'information-circle-outline',
-      label: 'Sobre',
-      onPress: () => {
-        console.log('Sobre');
-      },
-    },
-  ];
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top', 'bottom']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={tintColor} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!userProfile) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top', 'bottom']}>
+        <ThemedView style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color={textColor} />
+          </TouchableOpacity>
+          <ThemedText type="title" style={styles.headerTitle}>
+            Perfil
+          </ThemedText>
+          <ThemedView style={{ width: 40 }} />
+        </ThemedView>
+        <View style={styles.emptyContainer}>
+          <ThemedText>Perfil não encontrado</ThemedText>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top', 'bottom']}>
@@ -123,23 +165,63 @@ export default function ProfileScreen() {
           <ThemedText type="title" style={styles.headerTitle}>
             Perfil
           </ThemedText>
-          <ThemedView style={{ width: 40 }} />
+          <TouchableOpacity
+            style={styles.editHeaderButton}
+            onPress={() => setEditModalVisible(true)}>
+            <Ionicons name="create-outline" size={24} color={tintColor} />
+          </TouchableOpacity>
         </ThemedView>
 
         <ThemedView style={styles.profileHeader}>
-          <ThemedView style={[styles.avatarContainer, { backgroundColor: tintColor + '20' }]}>
-            <Ionicons name="person" size={48} color={tintColor} />
+          <ThemedView
+            style={[
+              styles.avatarContainer,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.15)' : tintColor + '20',
+              },
+            ]}>
+            {userProfile.avatarUrl && !avatarLoadError ? (
+              <Image
+                source={{ 
+                  uri: userProfile.avatarUrl.includes('?t=') 
+                    ? userProfile.avatarUrl 
+                    : `${userProfile.avatarUrl}?t=${Date.now()}`,
+                }}
+                style={styles.avatarImage}
+                contentFit="cover"
+                transition={200}
+                placeholderContentFit="cover"
+                cachePolicy="memory-disk"
+                recyclingKey={userProfile.avatarUrl}
+                onError={() => {
+                  setAvatarLoadError(true);
+                }}
+                onLoad={() => {
+                  setAvatarLoadError(false);
+                }}
+              />
+            ) : (
+              <Ionicons
+                name="person"
+                size={48}
+                color={isDark ? 'rgba(255, 255, 255, 0.9)' : tintColor}
+              />
+            )}
           </ThemedView>
           <ThemedText type="title" style={styles.userName}>
-            {userName}
+            {userProfile.name}
           </ThemedText>
-          {userUsername ? (
+          {userProfile.username && (
             <ThemedText style={[styles.userUsername, { color: tintColor }]}>
-              @{userUsername}
+              @{userProfile.username}
             </ThemedText>
-          ) : (
-            <ThemedText style={[styles.userEmail, { opacity: 0.6 }]}>{userEmail}</ThemedText>
           )}
+          {userProfile.bio && (
+            <ThemedText style={[styles.bio, { color: textColor, opacity: 0.7 }]}>
+              {userProfile.bio}
+            </ThemedText>
+          )}
+
         </ThemedView>
 
         <ThemedView style={styles.pointsSection}>
@@ -148,53 +230,83 @@ export default function ProfileScreen() {
 
         <ThemedView style={styles.statsContainer}>
           <ThemedView style={styles.statItem}>
-            <ThemedText style={styles.statValue}>{notes.length}</ThemedText>
-            <ThemedText style={[styles.statLabel, { opacity: 0.6 }]}>Notas</ThemedText>
+            <ThemedText style={styles.statValue}>{followStats.followersCount}</ThemedText>
+            <ThemedText style={[styles.statLabel, { opacity: 0.6 }]}>Seguidores</ThemedText>
           </ThemedView>
           <ThemedView style={[styles.statDivider, { backgroundColor: textColor + '20' }]} />
           <ThemedView style={styles.statItem}>
-            <ThemedText style={styles.statValue}>{books.length}</ThemedText>
-            <ThemedText style={[styles.statLabel, { opacity: 0.6 }]}>Livros</ThemedText>
+            <ThemedText style={styles.statValue}>{followStats.followingCount}</ThemedText>
+            <ThemedText style={[styles.statLabel, { opacity: 0.6 }]}>Seguindo</ThemedText>
           </ThemedView>
           <ThemedView style={[styles.statDivider, { backgroundColor: textColor + '20' }]} />
           <ThemedView style={styles.statItem}>
-            <ThemedText style={styles.statValue}>{folders.length}</ThemedText>
-            <ThemedText style={[styles.statLabel, { opacity: 0.6 }]}>Pastas</ThemedText>
+            <ThemedText style={styles.statValue}>{posts.length}</ThemedText>
+            <ThemedText style={[styles.statLabel, { opacity: 0.6 }]}>Resenhas</ThemedText>
           </ThemedView>
         </ThemedView>
 
-        <ThemedView style={styles.menuSection}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.menuItem, { backgroundColor: backgroundColor, borderColor: textColor + '10' }]}
-              onPress={item.onPress}>
-              <ThemedView style={styles.menuItemLeft}>
-                <ThemedView style={[styles.menuIconContainer, { backgroundColor: tintColor + '15' }]}>
-                  <Ionicons name={item.icon as any} size={20} color={tintColor} />
-                </ThemedView>
-                <ThemedText style={styles.menuItemLabel}>{item.label}</ThemedText>
-              </ThemedView>
-              <Ionicons name="chevron-forward" size={20} color={textColor} style={{ opacity: 0.3 }} />
-            </TouchableOpacity>
-          ))}
-        </ThemedView>
-
-        <ThemedView style={styles.signOutSection}>
-          <SignOutButton style={styles.signOutButton} />
-        </ThemedView>
-
-        <ThemedView style={styles.versionContainer}>
-          <ThemedText style={[styles.versionText, { opacity: 0.4 }]}>Versão 1.0.0</ThemedText>
-        </ThemedView>
+        {posts.length > 0 && (
+          <ThemedView style={styles.postsSection}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>
+              Resenhas
+            </ThemedText>
+            {posts.map((post) => (
+              <TouchableOpacity
+                key={post.id}
+                style={[
+                  styles.postItem,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                  },
+                ]}
+                onPress={() => {
+                  // TODO: Navigate to post details when route is created
+                }}>
+                <ThemedText style={styles.postTitle} numberOfLines={2}>
+                  {post.bookTitle}
+                </ThemedText>
+                <ThemedText
+                  style={[styles.postAuthor, { color: textColor, opacity: 0.6 }]}
+                  numberOfLines={1}>
+                  {post.bookAuthor}
+                </ThemedText>
+                {post.content && (
+                  <ThemedText
+                    style={[styles.postContent, { color: textColor, opacity: 0.8 }]}
+                    numberOfLines={3}>
+                    {post.content}
+                  </ThemedText>
+                )}
+              </TouchableOpacity>
+            ))}
+          </ThemedView>
+        )}
       </ScrollView>
 
       <EditProfileModal
         visible={editModalVisible}
-        currentName={userName}
-        currentUsername={userUsername}
+        currentName={userProfile.name}
+        currentUsername={userProfile.username || ''}
+        currentAvatarUrl={userProfile.avatarUrl}
         onClose={() => setEditModalVisible(false)}
         onSave={handleProfileSave}
+        onAvatarUpdate={async (avatarUrl) => {
+          // Update local state immediately
+          if (userProfile) {
+            setUserProfile({
+              ...userProfile,
+              avatarUrl: avatarUrl || undefined,
+            });
+          }
+          setAvatarLoadError(false); // Reset error state when new avatar is set
+          // Refresh profile data
+          await loadProfile();
+          const { data: { user: updatedUser } } = await supabase.auth.getUser();
+          if (updatedUser) {
+            await supabase.auth.refreshSession();
+          }
+        }}
       />
     </SafeAreaView>
   );
@@ -211,6 +323,11 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -224,11 +341,17 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
   },
+  editHeaderButton: {
+    padding: 8,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
   profileHeader: {
     alignItems: 'center',
-    marginBottom: 24,
-  },
-  pointsSection: {
     marginBottom: 24,
   },
   avatarContainer: {
@@ -238,6 +361,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   userName: {
     fontSize: 24,
@@ -247,10 +375,16 @@ const styles = StyleSheet.create({
   userUsername: {
     fontSize: 16,
     fontWeight: '500',
-    marginBottom: 2,
+    marginBottom: 8,
   },
-  userEmail: {
+  bio: {
     fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  pointsSection: {
+    marginBottom: 24,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -276,45 +410,31 @@ const styles = StyleSheet.create({
     width: 1,
     height: 40,
   },
-  menuSection: {
-    marginBottom: 24,
-    gap: 12,
+  postsSection: {
+    marginTop: 24,
   },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  postItem: {
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
+    marginBottom: 12,
   },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+  postTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
   },
-  menuIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+  postAuthor: {
+    fontSize: 14,
+    marginBottom: 8,
   },
-  menuItemLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  signOutSection: {
-    marginBottom: 24,
-  },
-  signOutButton: {
-    marginBottom: 0,
-  },
-  versionContainer: {
-    alignItems: 'center',
-  },
-  versionText: {
-    fontSize: 12,
+  postContent: {
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
-

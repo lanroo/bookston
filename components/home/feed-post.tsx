@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Image } from 'expo-image';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { CommentSection, PointsDisplay } from '@/components/social';
 import { ThemedText } from '@/components/themed-text';
@@ -8,6 +9,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRelativeTime } from '@/hooks/use-relative-time';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { ImageVerificationService } from '@/services/image-verification.service';
 
 export interface FeedPost {
   id: string;
@@ -43,8 +45,28 @@ export function FeedPost({ post, currentUserId, onPress, onLike, onComment, onOp
   const separatorColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
   const tintColor = '#0a7ea4';
   const [showComments, setShowComments] = useState(false);
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
+  const [isVerifyingAvatar, setIsVerifyingAvatar] = useState(false);
   const isOwnPost = currentUserId && post.userId === currentUserId;
   const relativeTime = useRelativeTime(post.createdAt);
+
+  // Verify avatar URL when component mounts or URL changes
+  useEffect(() => {
+    if (post.userAvatar && !avatarLoadError) {
+      setIsVerifyingAvatar(true);
+      ImageVerificationService.verifyImageUrl(post.userAvatar)
+        .then((isAccessible) => {
+          if (!isAccessible) {
+            setAvatarLoadError(true);
+          }
+        })
+        .catch((error) => {
+        })
+        .finally(() => {
+          setIsVerifyingAvatar(false);
+        });
+    }
+  }, [post.userAvatar]);
 
   const renderStars = (rating: number) => {
     return (
@@ -69,8 +91,26 @@ export function FeedPost({ post, currentUserId, onPress, onLike, onComment, onOp
           onPress={() => onPress?.(post)}
           activeOpacity={0.7}>
           <View style={styles.userInfo}>
-            {post.userAvatar ? (
-              <Image source={{ uri: post.userAvatar }} style={styles.avatar} />
+            {post.userAvatar && !avatarLoadError ? (
+              <Image
+                source={{ 
+                  uri: post.userAvatar.includes('?t=') 
+                    ? post.userAvatar 
+                    : `${post.userAvatar}?t=${Date.now()}`,
+                }}
+                style={styles.avatar}
+                contentFit="cover"
+                transition={200}
+                placeholderContentFit="cover"
+                cachePolicy="memory-disk"
+                recyclingKey={post.userAvatar}
+                onError={() => {
+                  setAvatarLoadError(true);
+                }}
+                onLoad={() => {
+                  setAvatarLoadError(false);
+                }}
+              />
             ) : (
               <View style={[styles.avatarPlaceholder, { backgroundColor: tintColor + '20' }]}>
                 <Ionicons name="person" size={20} color={tintColor} />
