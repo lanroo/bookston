@@ -46,3 +46,6 @@ app-example
 # documentation
 docs/
 tsconfig.json.bak
+
+# IDE
+.idea/
