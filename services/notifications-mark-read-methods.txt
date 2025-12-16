@@ -1,0 +1,41 @@
+
+
+  /**
+   * Mark a single notification as read
+   */
+  static async markAsRead(notificationId: string): Promise<void> {
+    const userId = await this.getCurrentUserId();
+    
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq('id', notificationId)
+        .eq('user_id', userId);
+      
+      if (error) throw error;
+    } catch (error) {
+      logger.error('Error marking notification as read', error, { notificationId, userId });
+      throw error;
+    }
+  }
+
+  /**
+   * Mark all notifications as read for the current user
+   */
+  static async markAllAsRead(): Promise<void> {
+    const userId = await this.getCurrentUserId();
+    
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+      
+      if (error) throw error;
+    } catch (error) {
+      logger.error('Error marking all notifications as read', error, { userId });
+      throw error;
+    }
+  }
