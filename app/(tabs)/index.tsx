@@ -13,6 +13,7 @@ import { useTabBarPadding } from '@/components/tab-bar';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useNotificationsRealtime } from '@/hooks/use-notifications-realtime';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { PointsService } from '@/services/points.service';
 import { PostsService } from '@/services/posts.service';
@@ -37,6 +38,7 @@ export default function HomeScreen() {
   const [selectedPostForOptions, setSelectedPostForOptions] = useState<Post | null>(null);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [avatarLoadError, setAvatarLoadError] = useState(false);
+  const { unreadCount: unreadNotificationsCount } = useNotificationsRealtime();
 
   const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuário';
 
@@ -47,14 +49,15 @@ export default function HomeScreen() {
       userName: post.userName,
       userUsername: post.userUsername,
       userAvatar: post.userAvatar,
+      bookId: post.bookId,
       bookTitle: post.bookTitle,
       bookAuthor: post.bookAuthor,
       bookCover: post.bookCoverUrl,
       content: post.content,
       rating: post.rating,
       createdAt: post.createdAt,
-      likes: post.likesCount,
-      comments: post.commentsCount,
+      likes: post.likesCount ?? 0,
+      comments: post.commentsCount ?? 0,
       isLiked: post.isLiked,
     };
   };
@@ -126,21 +129,51 @@ export default function HomeScreen() {
     }
   }, [user]);
 
-  // Clear feed when user changes
   useEffect(() => {
-    // Clear feed immediately when user ID changes
     setFeedPosts([]);
     setUserPoints({ totalPoints: 0, level: 1 });
   }, [user?.id]);
+
+  useEffect(() => {
+    loadUserAvatar();
+  }, [loadUserAvatar]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          // Reload avatar when profile is updated
+          if (payload.new && 'avatar_url' in payload.new) {
+            loadUserAvatar();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, loadUserAvatar]);
 
   useFocusEffect(
     useCallback(() => {
       if (user) {
         loadFeedPosts();
         loadUserPoints();
+        loadUserAvatar();
         setPointsRefreshKey((prev: number) => prev + 1);
       }
-    }, [loadFeedPosts, loadUserPoints, user])
+    }, [loadFeedPosts, loadUserPoints, loadUserAvatar, user])
   );
 
   const handleGenrePress = (genre: Genre) => {
@@ -150,11 +183,23 @@ export default function HomeScreen() {
   };
 
   const handlePostPress = (post: FeedPostType) => {
-    // TODO: Implementar navegação para detalhes do post
-    // router.push({
-    //   pathname: '/post-details',
-    //   params: { postId: post.id },
-    // });
+    router.push({
+      pathname: '/post-details',
+      params: { postId: post.id },
+    });
+  };
+
+  const handleBookPress = (post: FeedPostType) => {
+    // Navigate to book details screen
+    router.push({
+      pathname: '/book-details',
+      params: {
+        bookId: post.bookId || `temp-${post.bookTitle}-${post.bookAuthor}`, // Use bookId if available
+        bookTitle: post.bookTitle,
+        bookAuthor: post.bookAuthor,
+        bookCoverUrl: post.bookCover || '',
+      },
+    });
   };
 
   const handleLike = async (post: FeedPostType) => {
@@ -182,7 +227,15 @@ export default function HomeScreen() {
   };
 
   const handleComment = (post: FeedPostType) => {
-    loadFeedPosts();
+    // Update the comment count locally immediately
+    // The backend is already updated by CommentsService.createComment
+    setFeedPosts((prev) =>
+      prev.map((p) =>
+        p.id === post.id
+          ? { ...p, comments: (p.comments || 0) + 1 }
+          : p
+      )
+    );
   };
 
   const handlePostOptions = (post: FeedPostType) => {
@@ -229,33 +282,33 @@ export default function HomeScreen() {
     }
   };
 
+  const handleUserPress = (userId: string) => {
+    if (!user) return;
+    
+    // If it's the current user, go to own profile
+    if (userId === user.id) {
+      router.push('/profile');
+    } else {
+      // Go to another user's profile
+      router.push({
+        pathname: '/user-profile',
+        params: { userId },
+      });
+    }
+  };
+
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
+      <ScrollView
+        style={styles.mainScrollView}
+        contentContainerStyle={[styles.mainScrollContent, { paddingBottom: tabBarPadding }]}
+        showsVerticalScrollIndicator={false}>
 
-      <View style={styles.headerSection}>
+        <View style={styles.headerSection}>
 
-        <View style={styles.headerTopRow}>
-          <View style={styles.greetingContainer}>
-            <ThemedText style={[
-              styles.greeting, 
-              { color: isDark ? 'rgba(255, 255, 255, 0.5)' : textColor }
-            ]}>
-              Olá,
-            </ThemedText>
-            <ThemedText 
-              type="title" 
-              style={[
-                styles.userName,
-                { color: textColor }
-              ]}
-              numberOfLines={1}>
-              {userName}
-            </ThemedText>
-          </View>
-          
-          <View style={styles.headerActions}>
-            <SearchBar />
+          <View style={styles.headerTopRow}>
+            {/* Profile Avatar Button - Moved to the left */}
             <TouchableOpacity
               style={[
                 styles.avatarContainer,
@@ -264,8 +317,8 @@ export default function HomeScreen() {
                     ? 'rgba(255, 255, 255, 0.12)' 
                     : 'rgba(0, 0, 0, 0.04)',
                   borderColor: isDark 
-                    ? 'rgba(255, 255, 255, 0.15)' 
-                    : 'rgba(0, 0, 0, 0.08)',
+                    ? tintColor 
+                    : tintColor,
                 },
               ]}
               onPress={() => router.push('/profile')}
@@ -298,8 +351,50 @@ export default function HomeScreen() {
                 />
               )}
             </TouchableOpacity>
+
+            {/* Greeting and Name */}
+            <View style={styles.greetingContainer}>
+              <ThemedText style={[
+                styles.greeting, 
+                { color: isDark ? 'rgba(255, 255, 255, 0.5)' : textColor }
+              ]}>
+                Olá,
+              </ThemedText>
+              <ThemedText 
+                type="title" 
+                style={[
+                  styles.userName,
+                  { color: textColor }
+                ]}
+                numberOfLines={1}>
+                {userName}
+              </ThemedText>
+            </View>
+          
+            {/* Notifications and Search */}
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.notificationsButton}
+                onPress={() => router.push('/(tabs)/notifications')}
+                activeOpacity={0.7}>
+                <View style={styles.notificationsIconContainer}>
+                  <Ionicons
+                    name="notifications"
+                    size={22}
+                    color={isDark ? 'rgba(255, 255, 255, 0.8)' : tintColor}
+                  />
+                  {unreadNotificationsCount > 0 && (
+                    <View style={styles.notificationsBadge}>
+                      <ThemedText style={styles.notificationsBadgeText}>
+                        {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+              <SearchBar />
+            </View>
           </View>
-        </View>
 
         <TouchableOpacity
           style={styles.pointsCardWrapper}
@@ -381,39 +476,38 @@ export default function HomeScreen() {
 
           </LinearGradient>
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.genresSection}>
-        <ThemedText type="subtitle" style={styles.sectionTitle}>
-          Explorar por Gênero
-        </ThemedText>
-        <GenreButtons selectedGenreId={selectedGenreId} onGenrePress={handleGenrePress} />
-      </View>
-
-      <View style={styles.feedSection}>
-        <View style={styles.feedHeader}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            Feed
-          </ThemedText>
-          <TouchableOpacity onPress={() => router.push('/create-post')}>
-            <Ionicons name="add-circle" size={28} color={tintColor} />
-          </TouchableOpacity>
         </View>
-        <ScrollView
-          style={styles.feedScroll}
-          contentContainerStyle={[styles.feedContent, { paddingBottom: tabBarPadding }]}
-          showsVerticalScrollIndicator={false}>
+
+        <View style={styles.genresSection}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            Explorar por Gênero
+          </ThemedText>
+          <GenreButtons selectedGenreId={selectedGenreId} onGenrePress={handleGenrePress} />
+        </View>
+
+        <View style={styles.feedSection}>
+          <View style={styles.feedHeader}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>
+              Feed
+            </ThemedText>
+            <TouchableOpacity onPress={() => router.push('/create-post')}>
+              <Ionicons name="add-circle" size={28} color={tintColor} />
+            </TouchableOpacity>
+          </View>
           <FeedSection
             posts={feedPosts}
             currentUserId={user?.id}
             onPostPress={handlePostPress}
+            onBookPress={handleBookPress}
             onLike={handleLike}
             onComment={handleComment}
             onOptions={handlePostOptions}
+            onUserPress={handleUserPress}
             isLoading={isLoading}
           />
-        </ScrollView>
-      </View>
+        </View>
+
+      </ScrollView>
 
       <PostOptionsSheet
         visible={optionsSheetVisible}
@@ -433,6 +527,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  mainScrollView: {
+    flex: 1,
+  },
+  mainScrollContent: {
+    flexGrow: 1,
+  },
   headerSection: {
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -442,12 +542,12 @@ const styles = StyleSheet.create({
   headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 16,
+    gap: 12,
   },
   greetingContainer: {
     flex: 1,
     gap: 2,
+    marginLeft: 4,
   },
   greeting: {
     fontSize: 14,
@@ -472,7 +572,47 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
-    borderWidth: 1.5,
+    borderWidth: 2.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  notificationsButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationsIconContainer: {
+    position: 'relative',
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationsBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FF3B30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 0,
+  },
+  notificationsBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 13,
+    includeFontPadding: false,
   },
   avatarImage: {
     width: '100%',
@@ -576,19 +716,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   feedSection: {
-    flex: 1,
+    paddingHorizontal: 12,
   },
   feedHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  feedScroll: {
-    flex: 1,
-  },
-  feedContent: {
-    paddingBottom: 20,
+    marginBottom: 16,
   },
 });

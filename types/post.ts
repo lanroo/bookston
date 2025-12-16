@@ -49,6 +49,11 @@ export interface Comment {
   content: string;
   likesCount: number;
   isLiked: boolean;
+  parentCommentId?: string | null;
+  parentCommentUserName?: string;
+  parentCommentUserUsername?: string;
+  replies?: Comment[];
+  repliesCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -56,6 +61,7 @@ export interface Comment {
 export interface CommentCreateData {
   postId: string;
   content: string;
+  parentCommentId?: string | null;
 }
 
 export type PointsAction = 'post_created' | 'post_liked' | 'comment_created' | 'comment_liked';

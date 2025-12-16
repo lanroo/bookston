@@ -21,34 +21,35 @@ export class PostsService {
 
   private static async getUserProfile(userId: string): Promise<{ name: string; username?: string; avatar?: string }> {
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('name, username, avatar_url')
         .eq('user_id', userId)
         .single();
 
-      if (profile) {
+      if (profile && !error) {
         return {
           name: profile.name || 'Usuário',
           username: profile.username || undefined,
           avatar: profile.avatar_url || undefined,
         };
       }
-    } catch (error) {
-      logger.warn('Could not get profile from profiles table, using auth metadata', { error, userId });
-    }
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user?.id === userId) {
-      return {
-        name: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
-        username: user.user_metadata?.username,
-        avatar: user.user_metadata?.avatar_url,
-      };
-    }
 
+      logger.warn('Profile not found in profiles table, trying auth.users', { userId });
+      
+      return {
+        name: 'Usuário',
+        username: undefined,
+        avatar: undefined,
+      };
+    } catch (error) {
+      logger.error('Error getting user profile', error, { userId });
     return {
       name: 'Usuário',
+        username: undefined,
+        avatar: undefined,
     };
+    }
   }
 
   static async createPost(postData: PostCreateData): Promise<Post> {
@@ -116,8 +117,35 @@ export class PostsService {
           const userProfile = await this.getUserProfile(postUserId);
           const isLiked = await this.checkIfLiked(post.id, userId);
 
+          // Get actual counts from database to ensure accuracy
+          const [likesResult, commentsResult] = await Promise.all([
+            supabase
+              .from('post_likes')
+              .select('*', { count: 'exact', head: true })
+              .eq('post_id', post.id),
+            supabase
+              .from('comments')
+              .select('*', { count: 'exact', head: true })
+              .eq('post_id', post.id),
+          ]);
+
+          const actualLikesCount = likesResult.count ?? post.likes_count ?? 0;
+          const actualCommentsCount = commentsResult.count ?? post.comments_count ?? 0;
+          if (actualLikesCount !== post.likes_count || actualCommentsCount !== post.comments_count) {
+            await supabase
+              .from('posts')
+              .update({
+                likes_count: actualLikesCount,
+                comments_count: actualCommentsCount,
+              })
+              .eq('id', post.id);
+          }
+
           return {
-            ...this.mapDatabasePostToPost(post, userId),
+            ...this.mapDatabasePostToPost(
+              { ...post, likes_count: actualLikesCount, comments_count: actualCommentsCount },
+              userId
+            ),
             userName: userProfile.name,
             userUsername: userProfile.username,
             userAvatar: userProfile.avatar,
@@ -129,6 +157,39 @@ export class PostsService {
       return posts;
     } catch (error) {
       logger.error('Error fetching posts', error, { userId, limit, offset });
+      throw error;
+    }
+  }
+
+  static async getPostById(postId: string): Promise<Post | null> {
+    const currentUserId = await this.getCurrentUserId();
+
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('id', postId)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return null;
+        }
+        throw error;
+      }
+
+      const userProfile = await this.getUserProfile(data.user_id);
+      const isLiked = await this.checkIfLiked(postId, currentUserId);
+
+      return {
+        ...this.mapDatabasePostToPost(data as DatabasePost, currentUserId),
+        userName: userProfile.name,
+        userUsername: userProfile.username,
+        userAvatar: userProfile.avatar,
+        isLiked,
+      };
+    } catch (error) {
+      logger.error('Error fetching post by id', error, { postId });
       throw error;
     }
   }
@@ -201,6 +262,13 @@ export class PostsService {
 
         return { isLiked: false, likesCount: newLikesCount };
       } else {
+
+        const { data: postData } = await supabase
+          .from('posts')
+          .select('user_id, likes_count')
+          .eq('id', postId)
+          .single();
+
         await supabase
           .from('post_likes')
           .insert({
@@ -208,18 +276,27 @@ export class PostsService {
             user_id: userId,
           });
 
-        const { data: post } = await supabase
-          .from('posts')
-          .select('likes_count')
-          .eq('id', postId)
-          .single();
-
-        const newLikesCount = (post?.likes_count || 0) + 1;
+        const newLikesCount = (postData?.likes_count || 0) + 1;
 
         await supabase
           .from('posts')
           .update({ likes_count: newLikesCount })
           .eq('id', postId);
+
+        if (postData?.user_id && postData.user_id !== userId) {
+          try {
+            const { NotificationsService } = await import('@/services/notifications.service');
+            await NotificationsService.createNotification(
+              postData.user_id,
+              'like',
+              userId,
+              { postId }
+            );
+          } catch (notifError) {
+
+            logger.debug('Notification creation failed (trigger should handle it)', { notifError });
+          }
+        }
 
         return { isLiked: true, likesCount: newLikesCount };
       }
@@ -253,7 +330,6 @@ export class PostsService {
         throw new Error('Você não tem permissão para editar este post');
       }
 
-      // Update post
       const updateData: any = {
         updated_at: new Date().toISOString(),
       };
@@ -345,8 +421,8 @@ export class PostsService {
       rating: dbPost.rating || undefined,
       hasSpoiler: dbPost.has_spoiler,
       readingProgress: dbPost.reading_progress || undefined,
-      likesCount: dbPost.likes_count,
-      commentsCount: dbPost.comments_count,
+      likesCount: dbPost.likes_count ?? 0,
+      commentsCount: dbPost.comments_count ?? 0,
       isLiked: false,  
       createdAt: dbPost.created_at,
       updatedAt: dbPost.updated_at,

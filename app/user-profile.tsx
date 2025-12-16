@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router, useLocalSearchParams, useFocusEffect, Stack } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FollowersModal } from '@/components/profile/followers-modal';
 import { PointsDisplay } from '@/components/social';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -45,6 +47,8 @@ export default function UserProfileScreen() {
   const [following, setFollowing] = useState(false);
   const [isCurrentUser, setIsCurrentUser] = useState(false);
   const [avatarLoadError, setAvatarLoadError] = useState(false);
+  const [followersModalVisible, setFollowersModalVisible] = useState(false);
+  const [followingModalVisible, setFollowingModalVisible] = useState(false);
 
   const loadUserProfile = useCallback(async () => {
     if (!userId) return;
@@ -52,7 +56,6 @@ export default function UserProfileScreen() {
     try {
       setLoading(true);
 
-      // Check if it's the current user
       if (currentUser?.id === userId) {
         setIsCurrentUser(true);
         router.replace('/profile');
@@ -61,7 +64,6 @@ export default function UserProfileScreen() {
 
       setIsCurrentUser(false);
 
-      // Load profile from profiles table
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('user_id, name, username, avatar_url, bio')
@@ -69,9 +71,7 @@ export default function UserProfileScreen() {
         .single();
 
       if (profileError) {
-        // Fallback to auth metadata if profiles table doesn't exist or user not found
         logger.warn('Profile not found in profiles table, trying auth', { error: profileError });
-        // For now, show error
         Alert.alert('Erro', 'Perfil não encontrado');
         router.back();
         return;
@@ -85,17 +85,13 @@ export default function UserProfileScreen() {
         bio: profile.bio || undefined,
       });
 
-      // Load user's books (public books only - you may want to adjust this)
       try {
         const userBooks = await BooksService.getBooks();
-        // Filter to show only if user wants to share
-        // For now, we'll show a limited view
         setBooks([]);
       } catch (error) {
         logger.warn('Could not load user books', { error });
       }
 
-      // Load user's posts
       try {
         const userPosts = await PostsService.getPostsByUserId(userId, 10, 0);
         setPosts(userPosts);
@@ -103,7 +99,6 @@ export default function UserProfileScreen() {
         logger.warn('Could not load user posts', { error });
       }
 
-      // Load follow stats
       const stats = await FollowsService.getFollowStats(userId);
       setFollowStats(stats);
       setFollowing(stats.isFollowing);
@@ -128,7 +123,6 @@ export default function UserProfileScreen() {
       const newFollowingState = await FollowsService.toggleFollow(userId);
       setFollowing(newFollowingState);
       
-      // Update stats
       const stats = await FollowsService.getFollowStats(userId);
       setFollowStats(stats);
     } catch (error) {
@@ -139,185 +133,262 @@ export default function UserProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top', 'bottom']}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={tintColor} />
-        </View>
-      </SafeAreaView>
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top', 'bottom']}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={tintColor} />
+          </View>
+        </SafeAreaView>
+      </>
     );
   }
 
   if (!userProfile) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top', 'bottom']}>
-        <ThemedView style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color={textColor} />
-          </TouchableOpacity>
-          <ThemedText type="title" style={styles.headerTitle}>
-            Perfil
-          </ThemedText>
-          <ThemedView style={{ width: 40 }} />
-        </ThemedView>
-        <View style={styles.emptyContainer}>
-          <ThemedText>Perfil não encontrado</ThemedText>
-        </View>
-      </SafeAreaView>
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top', 'bottom']}>
+          <ThemedView style={styles.header}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={24} color={textColor} />
+            </TouchableOpacity>
+            <ThemedText style={styles.headerTitle}>Perfil</ThemedText>
+            <ThemedView style={{ width: 40 }} />
+          </ThemedView>
+          <View style={styles.emptyContainer}>
+            <ThemedText>Perfil não encontrado</ThemedText>
+          </View>
+        </SafeAreaView>
+      </>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top', 'bottom']}>
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top', 'bottom']}>
+      <ThemedView style={[styles.header, { borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }]}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color={textColor} />
+        </TouchableOpacity>
+        <ThemedText style={styles.headerTitle}>Perfil</ThemedText>
+        <ThemedView style={{ width: 40 }} />
+      </ThemedView>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        <ThemedView style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color={textColor} />
-          </TouchableOpacity>
-          <ThemedText type="title" style={styles.headerTitle}>
-            Perfil
-          </ThemedText>
-          <ThemedView style={{ width: 40 }} />
-        </ThemedView>
 
-        <ThemedView style={styles.profileHeader}>
-          <ThemedView
-            style={[
-              styles.avatarContainer,
-              {
-                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.15)' : tintColor + '20',
-              },
-            ]}>
-            {userProfile.avatarUrl && !avatarLoadError ? (
-              <Image
-                source={{ 
-                  uri: userProfile.avatarUrl.includes('?t=') 
-                    ? userProfile.avatarUrl 
-                    : `${userProfile.avatarUrl}?t=${Date.now()}`,
-                }}
-                style={styles.avatarImage}
-                contentFit="cover"
-                transition={200}
-                placeholderContentFit="cover"
-                cachePolicy="memory-disk"
-                recyclingKey={userProfile.avatarUrl}
-                onError={() => {
-                  setAvatarLoadError(true);
-                }}
-                onLoad={() => {
-                  setAvatarLoadError(false);
-                }}
-              />
-            ) : (
-              <Ionicons
-                name="person"
-                size={48}
-                color={isDark ? 'rgba(255, 255, 255, 0.9)' : tintColor}
-              />
-            )}
-          </ThemedView>
-          <ThemedText type="title" style={styles.userName}>
-            {userProfile.name}
-          </ThemedText>
-          {userProfile.username && (
-            <ThemedText style={[styles.userUsername, { color: tintColor }]}>
-              @{userProfile.username}
-            </ThemedText>
-          )}
-          {userProfile.bio && (
-            <ThemedText style={[styles.bio, { color: textColor, opacity: 0.7 }]}>
-              {userProfile.bio}
-            </ThemedText>
-          )}
+        <View style={styles.profileCard}>
+          <LinearGradient
+            colors={
+              isDark
+                ? ['rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.02)']
+                : ['rgba(0, 0, 0, 0.02)', 'rgba(0, 0, 0, 0.01)']
+            }
+            style={styles.profileGradient}>
+            
+            <View style={styles.avatarSection}>
+              <View
+                style={[
+                  styles.avatarContainer,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#FFFFFF',
+                    borderColor: tintColor,
+                    shadowColor: tintColor,
+                  },
+                ]}>
+                {userProfile.avatarUrl && !avatarLoadError ? (
+                  <Image
+                    source={{ 
+                      uri: userProfile.avatarUrl.includes('?t=') 
+                        ? userProfile.avatarUrl 
+                        : `${userProfile.avatarUrl}?t=${Date.now()}`,
+                    }}
+                    style={styles.avatarImage}
+                    contentFit="cover"
+                    transition={200}
+                    placeholderContentFit="cover"
+                    cachePolicy="memory-disk"
+                    recyclingKey={userProfile.avatarUrl}
+                    onError={() => setAvatarLoadError(true)}
+                    onLoad={() => setAvatarLoadError(false)}
+                  />
+                ) : (
+                  <Ionicons
+                    name="person"
+                    size={56}
+                    color={isDark ? 'rgba(255, 255, 255, 0.9)' : tintColor}
+                  />
+                )}
+              </View>
+            </View>
 
-          <TouchableOpacity
-            style={[
-              styles.followButton,
-              {
-                backgroundColor: following ? 'transparent' : tintColor,
-                borderColor: tintColor,
-                borderWidth: following ? 1 : 0,
-              },
-            ]}
-            onPress={handleFollowToggle}
-            activeOpacity={0.7}>
-            <Ionicons
-              name={following ? 'checkmark' : 'add'}
-              size={20}
-              color={following ? tintColor : '#FFFFFF'}
-            />
-            <ThemedText
-              style={[
-                styles.followButtonText,
-                { color: following ? tintColor : '#FFFFFF' },
-              ]}>
-              {following ? 'Seguindo' : 'Seguir'}
-            </ThemedText>
-          </TouchableOpacity>
-        </ThemedView>
+            <View style={styles.userInfo}>
+              <ThemedText style={styles.userName}>
+                {userProfile.name}
+              </ThemedText>
+              {userProfile.username && (
+                <View style={styles.usernameRow}>
+                  <Ionicons name="at" size={12} color={tintColor} />
+                  <ThemedText style={[styles.userUsername, { color: tintColor }]}>
+                    {userProfile.username}
+                  </ThemedText>
+                </View>
+              )}
+              {userProfile.bio && (
+                <ThemedText style={[styles.bio, { color: textColor }]}>
+                  {userProfile.bio}
+                </ThemedText>
+              )}
+            </View>
 
-        <ThemedView style={styles.statsContainer}>
-          <ThemedView style={styles.statItem}>
-            <ThemedText style={styles.statValue}>{followStats.followersCount}</ThemedText>
-            <ThemedText style={[styles.statLabel, { opacity: 0.6 }]}>Seguidores</ThemedText>
-          </ThemedView>
-          <ThemedView style={[styles.statDivider, { backgroundColor: textColor + '20' }]} />
-          <ThemedView style={styles.statItem}>
-            <ThemedText style={styles.statValue}>{followStats.followingCount}</ThemedText>
-            <ThemedText style={[styles.statLabel, { opacity: 0.6 }]}>Seguindo</ThemedText>
-          </ThemedView>
-          <ThemedView style={[styles.statDivider, { backgroundColor: textColor + '20' }]} />
-          <ThemedView style={styles.statItem}>
-            <ThemedText style={styles.statValue}>{posts.length}</ThemedText>
-            <ThemedText style={[styles.statLabel, { opacity: 0.6 }]}>Resenhas</ThemedText>
-          </ThemedView>
-        </ThemedView>
+            <View style={[styles.statsRow, { borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)' }]}>
+              <TouchableOpacity
+                style={styles.statItem}
+                activeOpacity={0.7}
+                onPress={() => setFollowersModalVisible(true)}>
+                <ThemedText style={styles.statValue}>{followStats.followersCount}</ThemedText>
+                <ThemedText style={[styles.statLabel, { color: textColor, opacity: 0.6 }]}>
+                  Seguidores
+                </ThemedText>
+              </TouchableOpacity>
+              
+              <View style={[styles.statDivider, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }]} />
+              
+              <TouchableOpacity
+                style={styles.statItem}
+                activeOpacity={0.7}
+                onPress={() => setFollowingModalVisible(true)}>
+                <ThemedText style={styles.statValue}>{followStats.followingCount}</ThemedText>
+                <ThemedText style={[styles.statLabel, { color: textColor, opacity: 0.6 }]}>
+                  Seguindo
+                </ThemedText>
+              </TouchableOpacity>
+              
+              <View style={[styles.statDivider, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }]} />
+              
+              <TouchableOpacity style={styles.statItem} activeOpacity={0.7}>
+                <ThemedText style={styles.statValue}>{posts.length}</ThemedText>
+                <ThemedText style={[styles.statLabel, { color: textColor, opacity: 0.6 }]}>
+                  Resenhas
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={handleFollowToggle}
+              activeOpacity={0.9}>
+              <LinearGradient
+                colors={following ? ['transparent', 'transparent'] : [tintColor, tintColor + 'DD']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[
+                  styles.followButton,
+                  {
+                    borderColor: tintColor,
+                    borderWidth: following ? 2 : 0,
+                  },
+                ]}>
+                <Ionicons
+                  name={following ? 'checkmark-circle' : 'person-add'}
+                  size={20}
+                  color={following ? tintColor : '#FFFFFF'}
+                />
+                <ThemedText
+                  style={[
+                    styles.followButtonText,
+                    { color: following ? tintColor : '#FFFFFF' },
+                  ]}>
+                  {following ? 'Seguindo' : 'Seguir'}
+                </ThemedText>
+              </LinearGradient>
+            </TouchableOpacity>
+          </LinearGradient>
+        </View>
 
         {posts.length > 0 && (
-          <ThemedView style={styles.postsSection}>
-            <ThemedText type="subtitle" style={styles.sectionTitle}>
-              Resenhas
-            </ThemedText>
-            {posts.map((post) => (
+          <View style={styles.postsSection}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <Ionicons name="book" size={22} color={tintColor} />
+                <ThemedText style={styles.sectionTitle}>Resenhas Públicas</ThemedText>
+              </View>
+              <View style={[styles.postsBadge, { backgroundColor: tintColor + '20' }]}>
+                <ThemedText style={[styles.postsBadgeText, { color: tintColor }]}>
+                  {posts.length}
+                </ThemedText>
+              </View>
+            </View>
+
+            {posts.map((post, index) => (
               <TouchableOpacity
                 key={post.id}
                 style={[
                   styles.postItem,
                   {
-                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
-                    borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#FFFFFF',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
                   },
                 ]}
                 onPress={() => {
-                  // Navigate to post details
                   router.push({
                     pathname: '/post-details',
                     params: { postId: post.id },
                   });
-                }}>
-                <ThemedText style={styles.postTitle} numberOfLines={2}>
-                  {post.bookTitle}
-                </ThemedText>
-                <ThemedText
-                  style={[styles.postAuthor, { color: textColor, opacity: 0.6 }]}
-                  numberOfLines={1}>
-                  {post.bookAuthor}
-                </ThemedText>
+                }}
+                activeOpacity={0.7}>
+                <View style={styles.postHeader}>
+                  <View style={[styles.postIconContainer, { backgroundColor: tintColor + '15' }]}>
+                    <Ionicons name="book-outline" size={18} color={tintColor} />
+                  </View>
+                  <View style={styles.postInfo}>
+                    <ThemedText style={styles.postTitle} numberOfLines={1}>
+                      {post.bookTitle}
+                    </ThemedText>
+                    <ThemedText
+                      style={[styles.postAuthor, { color: textColor }]}
+                      numberOfLines={1}>
+                      {post.bookAuthor}
+                    </ThemedText>
+                  </View>
+                  {post.rating && (
+                    <View style={styles.ratingContainer}>
+                      <Ionicons name="star" size={14} color="#FFD700" />
+                      <ThemedText style={styles.ratingText}>{post.rating}</ThemedText>
+                    </View>
+                  )}
+                </View>
                 {post.content && (
                   <ThemedText
-                    style={[styles.postContent, { color: textColor, opacity: 0.8 }]}
+                    style={[styles.postContent, { color: textColor }]}
                     numberOfLines={3}>
                     {post.content}
                   </ThemedText>
                 )}
               </TouchableOpacity>
             ))}
-          </ThemedView>
+          </View>
         )}
       </ScrollView>
+
+      <FollowersModal
+        visible={followersModalVisible}
+        userId={userProfile.id}
+        type="followers"
+        onClose={() => setFollowersModalVisible(false)}
+      />
+
+      <FollowersModal
+        visible={followingModalVisible}
+        userId={userProfile.id}
+        type="following"
+        onClose={() => setFollowingModalVisible(false)}
+      />
     </SafeAreaView>
+    </>
   );
 }
 
@@ -329,7 +400,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    paddingTop: 24,
     paddingBottom: 40,
   },
   loadingContainer: {
@@ -341,13 +412,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   backButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 18,
     fontWeight: '700',
   },
   emptyContainer: {
@@ -356,103 +432,190 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 40,
   },
-  profileHeader: {
-    alignItems: 'center',
+  profileCard: {
+    marginHorizontal: 20,
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
     marginBottom: 24,
   },
-  avatarContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    justifyContent: 'center',
+  profileGradient: {
+    padding: 20,
+    paddingTop: 24,
+  },
+  avatarSection: {
     alignItems: 'center',
     marginBottom: 16,
+  },
+  avatarContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
     overflow: 'hidden',
+    borderWidth: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
   avatarImage: {
     width: '100%',
     height: '100%',
   },
+  userInfo: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
   userName: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '800',
     marginBottom: 4,
+    textAlign: 'center',
+  },
+  usernameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 8,
   },
   userUsername: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 8,
+    fontSize: 14,
+    fontWeight: '600',
   },
   bio: {
     fontSize: 14,
     textAlign: 'center',
+    lineHeight: 20,
+    opacity: 0.7,
+    paddingHorizontal: 8,
+    marginTop: 4,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    paddingTop: 16,
+    paddingBottom: 18,
     marginBottom: 16,
-    paddingHorizontal: 20,
-  },
-  followButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-    gap: 8,
-    minWidth: 120,
-  },
-  followButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 24,
-    marginBottom: 32,
-    borderRadius: 16,
-    backgroundColor: 'transparent',
+    borderTopWidth: 1,
   },
   statItem: {
     alignItems: 'center',
     flex: 1,
   },
   statValue: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
+    fontWeight: '500',
   },
   statDivider: {
     width: 1,
-    height: 40,
+    alignSelf: 'center',
+    height: 32,
+  },
+  followButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 14,
+    gap: 6,
+  },
+  followButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   postsSection: {
-    marginTop: 24,
+    paddingHorizontal: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 16,
+  },
+  postsBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  postsBadgeText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   postItem: {
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  postHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  postIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  postInfo: {
+    flex: 1,
   },
   postTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
   },
   postAuthor: {
-    fontSize: 14,
-    marginBottom: 8,
+    fontSize: 13,
+    opacity: 0.6,
+    fontWeight: '500',
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  ratingText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFD700',
   },
   postContent: {
     fontSize: 14,
     lineHeight: 20,
+    opacity: 0.8,
   },
 });
 

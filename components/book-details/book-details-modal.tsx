@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,10 +17,12 @@ import { BookNotesSection } from '@/components/book-details/book-notes-section';
 import { BookReviewsSection } from '@/components/book-details/book-reviews-section';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { BooksService } from '@/services/books.service';
-import type { Book } from '@/types';
+import { PostsService } from '@/services/posts.service';
+import type { Book, Post } from '@/types';
 import { logger } from '@/utils/logger';
 import { retry } from '@/utils/retry';
 
@@ -54,6 +57,8 @@ interface AppReview {
   id: string;
   userId: string;
   userName: string;
+  userUsername?: string;
+  userAvatar?: string;
   userInitials: string;
   avatarColor: string;
   rating: number;
@@ -61,6 +66,7 @@ interface AppReview {
   tags: string[];
   likes: number;
   liked: boolean;
+  commentsCount?: number;
   createdAt: string;
 }
 
@@ -70,6 +76,7 @@ export function BookDetailsModal({ visible, book, onClose, onBookUpdated }: Book
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
   const isDark = colorScheme === 'dark';
+  const { user } = useAuth();
 
   const [bookDetails, setBookDetails] = useState<GoogleBookDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -79,6 +86,7 @@ export function BookDetailsModal({ visible, book, onClose, onBookUpdated }: Book
   const [userRating, setUserRating] = useState<number | undefined>(undefined);
   const [savingRating, setSavingRating] = useState(false);
   const [appReviews, setAppReviews] = useState<AppReview[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   useEffect(() => {
     if (visible && book) {
@@ -93,72 +101,88 @@ export function BookDetailsModal({ visible, book, onClose, onBookUpdated }: Book
     }
   }, [visible, book]);
 
-  const loadAppReviews = () => {
-    const mockReviews: AppReview[] = [
-      {
-        id: '1',
-        userId: 'user1',
-        userName: 'Maria Silva',
-        userInitials: 'MS',
-        avatarColor: '#FF6B6B',
-        rating: 5,
-        review: 'Um livro incrível! A narrativa é envolvente desde as primeiras páginas. Os personagens são muito bem desenvolvidos e a trama mantém você preso até o final. A autora conseguiu criar um equilíbrio perfeito entre ação e desenvolvimento emocional. Recomendo muito para quem gosta de histórias bem construídas!',
-        tags: ['#Recomendo', '#Emocionante'],
-        likes: 12,
-        liked: false,
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: '2',
-        userId: 'user2',
-        userName: 'João Santos',
-        userInitials: 'JS',
-        avatarColor: '#4ECDC4',
-        rating: 4,
-        review: 'Boa leitura! O livro tem momentos muito interessantes e a escrita é fluida. Gostei especialmente da construção dos personagens secundários. No entanto, esperava um pouco mais do final - achei que poderia ter sido mais impactante. Mesmo assim, vale a pena ler!',
-        tags: ['#BoaLeitura'],
-        likes: 8,
-        liked: false,
-        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: '3',
-        userId: 'user3',
-        userName: 'Ana Costa',
-        userInitials: 'AC',
-        avatarColor: '#95E1D3',
-        rating: 5,
-        review: 'Simplesmente perfeito! Uma das melhores leituras do ano. A autora conseguiu criar um mundo único e cativante. Não consegui parar de ler até terminar. Já recomendei para várias amigas!',
-        tags: ['#Favorito', '#Recomendo'],
-        likes: 24,
-        liked: true,
-        createdAt: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: '4',
-        userId: 'user4',
-        userName: 'Pedro Oliveira',
-        userInitials: 'PO',
-        avatarColor: '#AA96DA',
-        rating: 4,
-        review: 'Gostei bastante! A história é envolvente e os personagens são cativantes. A única coisa que me incomodou um pouco foi o ritmo em algumas partes, mas no geral é uma excelente leitura.',
-        tags: ['#BoaLeitura', '#Envolvente'],
-        likes: 5,
-        liked: false,
-        createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-      },
-    ];
-    setAppReviews(mockReviews);
+  const loadAppReviews = async () => {
+    if (!book) return;
+
+    try {
+      setLoadingReviews(true);
+      // Get all posts and filter by bookId or bookTitle/bookAuthor
+      const allPosts = await PostsService.getPosts(200, 0);
+      
+      const bookPosts = allPosts.filter((post: Post) => {
+        // Match by bookId if available
+        if (book.id && post.bookId && post.bookId === book.id) {
+          return true;
+        }
+        if (book.title && post.bookTitle) {
+          const titleMatch = post.bookTitle.toLowerCase().trim() === book.title.toLowerCase().trim();
+          const authorMatch = !book.author || !post.bookAuthor || 
+            post.bookAuthor.toLowerCase().trim() === book.author.toLowerCase().trim();
+          
+          if (titleMatch && authorMatch) {
+            return true;
+          }
+        }
+        return false;
+      });
+
+      // Convert posts to AppReview format
+      const reviews: AppReview[] = bookPosts.map((post) => {
+        const userName = post.userName || 'Usuário';
+        const initials = userName
+          .split(' ')
+          .map((n) => n[0])
+          .join('')
+          .toUpperCase()
+          .slice(0, 2) || 'U';
+        
+        // Generate a color based on userId
+        const colors = ['#FF6B6B', '#4ECDC4', '#95E1D3', '#AA96DA', '#F38181', '#FCE38A', '#EAFFD0'];
+        const colorIndex = post.userId.charCodeAt(0) % colors.length;
+        const avatarColor = colors[colorIndex];
+
+        return {
+          id: post.id,
+          userId: post.userId,
+          userName,
+          userUsername: post.userUsername,
+          userAvatar: post.userAvatar,
+          userInitials: initials,
+          avatarColor,
+          rating: post.rating || 0,
+          review: post.content || '',
+          tags: [], // Posts don't have tags yet
+          likes: post.likesCount || 0,
+          liked: post.isLiked || false,
+          commentsCount: post.commentsCount || 0,
+          createdAt: post.createdAt,
+        };
+      });
+
+      setAppReviews(reviews);
+    } catch (error) {
+      logger.error('Error loading app reviews', error, { bookId: book.id });
+      setAppReviews([]);
+    } finally {
+      setLoadingReviews(false);
+    }
   };
 
-  const handleToggleLike = (reviewId: string) => {
-    setAppReviews((prev) =>
-      prev.map((review) =>
-        review.id === reviewId
-          ? { ...review, liked: !review.liked, likes: review.liked ? review.likes - 1 : review.likes + 1 }
-          : review
-      )
-    );
+  const handleToggleLike = async (reviewId: string) => {
+    if (!user) return;
+
+    try {
+      const result = await PostsService.toggleLike(reviewId);
+      setAppReviews((prev) =>
+        prev.map((review) =>
+          review.id === reviewId
+            ? { ...review, liked: result.isLiked, likes: result.likesCount }
+            : review
+        )
+      );
+    } catch (error) {
+      logger.error('Error toggling like', error, { reviewId });
+    }
   };
 
   const fetchBookDetails = async () => {
@@ -323,12 +347,44 @@ export function BookDetailsModal({ visible, book, onClose, onBookUpdated }: Book
                 isDark={isDark}
               />
 
-              <BookReviewsSection
-                reviews={appReviews}
-                onToggleLike={handleToggleLike}
-                textColor={textColor}
-                tintColor={tintColor}
-              />
+              {loadingReviews ? (
+                <ThemedView style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color={tintColor} />
+                  <ThemedText style={[styles.loadingText, { color: textColor + '80' }]}>
+                    Carregando resenhas...
+                  </ThemedText>
+                </ThemedView>
+              ) : (
+                <BookReviewsSection
+                  reviews={appReviews}
+                  onToggleLike={handleToggleLike}
+                  onReviewPress={(reviewId) => {
+                    router.push({
+                      pathname: '/post-details',
+                      params: { postId: reviewId },
+                    });
+                  }}
+                  onUserPress={(userId) => {
+                    if (user && userId === user.id) {
+                      router.push('/profile');
+                    } else {
+                      router.push({
+                        pathname: '/user-profile',
+                        params: { userId },
+                      });
+                    }
+                  }}
+                  onCommentPress={(reviewId) => {
+                    router.push({
+                      pathname: '/post-details',
+                      params: { postId: reviewId },
+                    });
+                  }}
+                  textColor={textColor}
+                  tintColor={tintColor}
+                  isDark={isDark}
+                />
+              )}
             </>
           )}
         </ScrollView>

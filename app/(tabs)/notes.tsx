@@ -339,7 +339,6 @@ export default function NotesScreen() {
                       icon: 'folder',
                       label: 'Criar Pasta',
                       onPress: () => {  
-                        // TODO: Implementar criação de pasta
                       },
                     }
                   : undefined

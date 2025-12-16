@@ -248,36 +248,32 @@ export function EditProfileModal({
     <Modal
       visible={visible}
       animationType="slide"
-      transparent={false}
+      presentationStyle="pageSheet"
       onRequestClose={onClose}>
-      <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
+        <View style={[styles.header, { borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }]}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Ionicons name="close" size={24} color={textColor} />
+          </TouchableOpacity>
+          <ThemedText style={styles.headerTitle}>Editar Perfil</ThemedText>
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={loading}
+            style={[
+              styles.saveButton,
+              { backgroundColor: loading ? tintColor + '50' : tintColor },
+            ]}>
+            {loading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <ThemedText style={styles.saveButtonText}>Salvar</ThemedText>
+            )}
+          </TouchableOpacity>
+        </View>
+
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={textColor} />
-            </TouchableOpacity>
-            <ThemedText type="title" style={styles.headerTitle}>
-              Editar Perfil
-            </ThemedText>
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={loading}
-              style={[
-                styles.saveButton,
-                { backgroundColor: loading ? tintColor + '50' : tintColor },
-                loading && styles.saveButtonDisabled,
-              ]}>
-              {loading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <ThemedText style={styles.saveButtonText}>Salvar</ThemedText>
-              )}
-            </TouchableOpacity>
-          </View>
-
+          style={styles.keyboardView}>
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
@@ -414,9 +410,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
   closeButton: {
     width: 40,
@@ -425,7 +420,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
   },
   saveButton: {
@@ -448,25 +443,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 24,
+    paddingHorizontal: 20,
+    paddingTop: 24,
     paddingBottom: 40,
   },
   avatarSection: {
     alignItems: 'center',
-    marginBottom: 32,
-    gap: 16,
+    marginBottom: 28,
+    paddingTop: 8,
   },
   avatarContainer: {
     position: 'relative',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     overflow: 'hidden',
+    marginBottom: 12,
   },
   avatarWrapper: {
     width: '100%',
     height: '100%',
-    borderRadius: 70,
+    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -479,21 +476,22 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 40,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    height: 36,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderBottomLeftRadius: 70,
-    borderBottomRightRadius: 70,
+    borderBottomLeftRadius: 60,
+    borderBottomRightRadius: 60,
   },
   avatarEditText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   removePhotoButton: {
-    paddingVertical: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
   removePhotoText: {
     fontSize: 14,

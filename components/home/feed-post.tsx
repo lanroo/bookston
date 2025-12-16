@@ -17,6 +17,7 @@ export interface FeedPost {
   userName: string;
   userUsername?: string;
   userAvatar?: string;
+  bookId?: string;
   bookTitle: string;
   bookAuthor: string;
   bookCover?: string;
@@ -35,9 +36,10 @@ interface FeedPostProps {
   onLike?: (post: FeedPost) => void;
   onComment?: (post: FeedPost) => void;
   onOptions?: (post: FeedPost) => void;
+  onUserPress?: (userId: string) => void;
 }
 
-export function FeedPost({ post, currentUserId, onPress, onLike, onComment, onOptions }: FeedPostProps) {
+export function FeedPost({ post, currentUserId, onPress, onLike, onComment, onOptions, onUserPress }: FeedPostProps) {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const colorScheme = useColorScheme();
@@ -88,7 +90,7 @@ export function FeedPost({ post, currentUserId, onPress, onLike, onComment, onOp
       <View style={styles.postHeader}>
         <TouchableOpacity
           style={styles.userInfoContainer}
-          onPress={() => onPress?.(post)}
+          onPress={() => onUserPress?.(post.userId)}
           activeOpacity={0.7}>
           <View style={styles.userInfo}>
             {post.userAvatar && !avatarLoadError ? (

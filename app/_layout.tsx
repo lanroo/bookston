@@ -5,6 +5,7 @@ import 'react-native-reanimated';
 
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { NotificationProvider } from '@/contexts/NotificationContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -26,6 +27,7 @@ function RootLayoutContent() {
   return (
     <ErrorBoundary>
       <AuthProvider>
+        <NotificationProvider>
         <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <Stack>
             <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -39,6 +41,7 @@ function RootLayoutContent() {
           </Stack>
           <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         </NavigationThemeProvider>
+        </NotificationProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

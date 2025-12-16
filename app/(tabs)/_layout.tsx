@@ -15,15 +15,22 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
       }}>
       {TAB_SCREENS.map((screen) => (
-      <Tabs.Screen
+        <Tabs.Screen
           key={screen.name}
           name={screen.name}
-        options={{
+          options={{
             title: screen.title,
             tabBarIcon: ({ color, size }) => screen.icon({ color, size }),
+          }}
+        />
+      ))}
+      {/* Hide notifications from tab bar */}
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          href: null, // This hides it from the tab bar
         }}
       />
-      ))}
     </Tabs>
   );
 }

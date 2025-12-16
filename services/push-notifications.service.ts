@@ -1,24 +1,16 @@
+import { supabase } from '@/lib/supabase';
+import { NotificationsService } from '@/services/notifications.service';
 import { logger } from '@/utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 const NOTIFICATION_ENABLED_KEY = '@push_notifications_enabled';
 const EXPO_PUSH_TOKEN_KEY = '@expo_push_token';
 
-/**
- * Push Notifications Service
- * 
- * Handles all push notification related operations:
- * - Requesting permissions
- * - Registering for push tokens
- * - Managing notification settings
- * - Sending local notifications
- */
 export class PushNotificationsService {
-  /**
-   * Configure notification behavior
-   */
+
   static configureNotifications() {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
@@ -31,10 +23,7 @@ export class PushNotificationsService {
     });
   }
 
-  /**
-   * Request notification permissions
-   * @returns Promise<boolean> - true if permissions granted, false otherwise
-   */
+
   static async requestPermissions(): Promise<boolean> {
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -52,10 +41,7 @@ export class PushNotificationsService {
     }
   }
 
-  /**
-   * Get project ID from various sources
-   * @returns string | null - Project ID or null if not found
-   */
+  
   private static getProjectId(): string | null {
     const projectId = 
       Constants.expoConfig?.extra?.eas?.projectId ||
@@ -67,12 +53,7 @@ export class PushNotificationsService {
     return projectId || null;
   }
 
-  /**
-   * Register for push notifications and get Expo push token
-   * Note: Push tokens require a projectId. In Expo Go, this may not be available.
-   * Local notifications will still work without a push token.
-   * @returns Promise<string | null> - Expo push token or null if registration failed or projectId unavailable
-   */
+  
   static async registerForPushNotifications(): Promise<string | null> {
     try {
       const hasPermission = await this.requestPermissions();
@@ -91,6 +72,18 @@ export class PushNotificationsService {
         const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
         const token = tokenData.data;
         await AsyncStorage.setItem(EXPO_PUSH_TOKEN_KEY, token);
+        
+    
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const platform = Platform.OS;
+            await NotificationsService.savePushToken(token, undefined, platform);
+          }
+        } catch (dbError) {
+          logger.warn('Error saving push token to database', { error: dbError });
+        }
+        
         return token;
       } catch (error) {
 
@@ -107,10 +100,6 @@ export class PushNotificationsService {
     }
   }
 
-  /**
-   * Get stored Expo push token
-   * @returns Promise<string | null> - Stored token or null if not found
-   */
   static async getStoredToken(): Promise<string | null> {
     try {
       return await AsyncStorage.getItem(EXPO_PUSH_TOKEN_KEY);
@@ -120,10 +109,6 @@ export class PushNotificationsService {
     }
   }
 
-  /**
-   * Check if push notifications are enabled
-   * @returns Promise<boolean> - true if enabled, false otherwise
-   */
   static async isEnabled(): Promise<boolean> {
     try {
       const value = await AsyncStorage.getItem(NOTIFICATION_ENABLED_KEY);
@@ -134,12 +119,6 @@ export class PushNotificationsService {
     }
   }
 
-  /**
-   * Enable push notifications
-   * Note: This enables notifications even if push token registration fails.
-   * Local notifications will work regardless of push token availability.
-   * @returns Promise<boolean> - true if successfully enabled (permissions granted), false otherwise
-   */
   static async enable(): Promise<boolean> {
     const hasPermission = await this.requestPermissions();
     if (!hasPermission) {

@@ -216,7 +216,7 @@ export class BookSearchService {
       authors: book.author_name && book.author_name.length > 0
         ? book.author_name
         : ['Autor desconhecido'],
-      publishedDate: book.first_publish_year?.toString(),
+      publishedDate: book.first_publish_year?.toString() || undefined,
       coverUrl,
       pageCount: book.number_of_pages_median,
       categories: book.subject?.slice(0, 5),

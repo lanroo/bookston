@@ -4,16 +4,30 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
+    "start:go": "expo start --go",
+    "start:ios": "expo start --ios",
+    "start:android": "expo start --android",
     "start:tunnel": "expo start --tunnel",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
+    "android": "bash ./scripts/run-android.sh",
+    "android:new": "bash ./scripts/run-android.sh --new",
+    "ios": "bash ./scripts/run-ios.sh",
+    "clean": "bash ./scripts/clean.sh",
+    "clean:quick": "bash ./scripts/quick-clean.sh",
+    "prebuild": "expo prebuild",
+    "prebuild:clean": "expo prebuild --clean",
+    "prebuild:android": "expo prebuild --platform android",
+    "prebuild:android:clean": "expo prebuild --platform android --clean",
+    "prebuild:ios": "expo prebuild --platform ios",
+    "prebuild:ios:clean": "expo prebuild --platform ios --clean",
     "web": "expo start --web",
     "lint": "expo lint",
     "migration:show": "node ./scripts/run-migration.js",
     "build:preview": "eas build --profile preview",
     "build:production": "eas build --profile production",
-    "update": "eas update --branch production --message \"Update\""
+    "update": "eas update --branch production --message \"Update\"",
+    "docs": "node api-docs/server.js",
+    "docs:serve": "node api-docs/server.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -55,7 +69,9 @@
     "@types/react": "~19.1.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "express": "^4.18.2",
+    "swagger-ui-express": "^5.0.0"
   },
   "private": true
 }

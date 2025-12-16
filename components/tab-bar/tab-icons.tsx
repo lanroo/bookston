@@ -20,6 +20,9 @@ export const TabIcons = {
   Books: ({ color, size = 24 }: TabIconProps) => (
     <Ionicons name="library" size={size} color={color} />
   ),
+  Notifications: ({ color, size = 24 }: TabIconProps) => (
+    <Ionicons name="notifications" size={size} color={color} />
+  ),
   Notes: ({ color, size = 24 }: TabIconProps) => (
     <Ionicons name="document-text" size={size} color={color} />
   ),

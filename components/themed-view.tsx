@@ -3,7 +3,7 @@ import { View, type ViewProps } from 'react-native';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 
-export type ThemedViewProps = ViewProps & {
+export type ThemedViewProps = React.PropsWithChildren<ViewProps> & {
   lightColor?: string;
   darkColor?: string;
 };

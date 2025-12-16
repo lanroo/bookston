@@ -1,7 +1,4 @@
-/**
- * Database Types
- * Single Responsibility: Database schema types (snake_case)
- */
+
 
 import type { BookStatus } from './book';
 import type { PointsAction } from './post';
@@ -73,6 +70,7 @@ export interface DatabaseComment {
   user_id: string;
   content: string;
   likes_count: number;
+  parent_comment_id?: string | null;
   created_at: string;
   updated_at: string;
 }

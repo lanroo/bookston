@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { ReviewCard, type ReviewCardData } from '@/components/social/review-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
@@ -8,6 +9,8 @@ interface AppReview {
   id: string;
   userId: string;
   userName: string;
+  userUsername?: string;
+  userAvatar?: string;
   userInitials: string;
   avatarColor: string;
   rating: number;
@@ -15,76 +18,99 @@ interface AppReview {
   tags: string[];
   likes: number;
   liked: boolean;
+  commentsCount?: number;
   createdAt: string;
 }
 
 interface BookReviewsSectionProps {
   reviews: AppReview[];
   onToggleLike: (reviewId: string) => void;
+  onReviewPress?: (reviewId: string) => void;
+  onUserPress?: (userId: string) => void;
+  onCommentPress?: (reviewId: string) => void;
   textColor: string;
   tintColor: string;
+  isDark?: boolean;
 }
 
-function formatTimeAgo(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  
-  if (diffInSeconds < 60) return 'agora';
-  if (diffInSeconds < 3600) return `há ${Math.floor(diffInSeconds / 60)} min`;
-  if (diffInSeconds < 86400) return `há ${Math.floor(diffInSeconds / 3600)}h`;
-  if (diffInSeconds < 604800) return `há ${Math.floor(diffInSeconds / 86400)} dias`;
-  if (diffInSeconds < 2592000) return `há ${Math.floor(diffInSeconds / 604800)} semanas`;
-  if (diffInSeconds < 31536000) return `há ${Math.floor(diffInSeconds / 2592000)} meses`;
-  return `há ${Math.floor(diffInSeconds / 31536000)} anos`;
-}
-
-function renderStars(rating: number, textColor: string) {
-  return (
-    <ThemedView style={styles.starsContainer}>
-      {[1, 2, 3, 4, 5].map((star) => (
-        <Ionicons
-          key={star}
-          name={star <= rating ? 'star' : 'star-outline'}
-          size={14}
-          color={star <= rating ? '#FFD700' : textColor + '40'}
-        />
-      ))}
-    </ThemedView>
-  );
-}
 
 export function BookReviewsSection({
   reviews,
   onToggleLike,
+  onReviewPress,
+  onUserPress,
+  onCommentPress,
   textColor,
   tintColor,
+  isDark = false,
 }: BookReviewsSectionProps) {
   const averageRating = reviews.length > 0
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : '0.0';
 
+  const borderColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)';
+
+  // Convert AppReview to ReviewCardData
+  const convertToReviewCardData = (review: AppReview): ReviewCardData => ({
+    id: review.id,
+    userId: review.userId,
+    userName: review.userName,
+    userUsername: review.userUsername,
+    userAvatar: review.userAvatar,
+    userInitials: review.userInitials,
+    avatarColor: review.avatarColor,
+    content: review.review,
+    rating: review.rating,
+    likes: review.likes,
+    comments: review.commentsCount,
+    isLiked: review.liked,
+    createdAt: review.createdAt,
+    tags: review.tags,
+  });
+
   return (
     <ThemedView style={styles.section}>
-      <ThemedView style={styles.reviewsHeader}>
-        <ThemedView style={styles.reviewsHeaderTop}>
+      {/* Section Header */}
+      <ThemedView style={[styles.sectionHeader, { borderBottomColor: borderColor }]}>
+        <ThemedView style={styles.sectionHeaderTop}>
+          <ThemedView style={styles.sectionTitleContainer}>
+            <Ionicons name="chatbubbles" size={22} color={tintColor} />
           <ThemedText style={[styles.sectionTitle, { color: textColor }]}>
             Avaliações e Resenhas
           </ThemedText>
+          </ThemedView>
           {reviews.length > 0 && (
-            <ThemedView style={styles.reviewsStats}>
-              <ThemedView style={styles.reviewsStatsItem}>
-                <Ionicons name="star" size={18} color="#FFD700" />
-                <ThemedText style={[styles.reviewsStatsText, { color: textColor }]}>
-                  {averageRating}
-                </ThemedText>
-              </ThemedView>
-              <ThemedText style={[styles.reviewsStatsText, { color: textColor + '70' }]}>
-                • {reviews.length} {reviews.length === 1 ? 'avaliação' : 'avaliações'}
+            <ThemedView style={[styles.reviewsBadge, { backgroundColor: tintColor + '15' }]}>
+              <ThemedText style={[styles.reviewsBadgeText, { color: tintColor }]}>
+                {reviews.length}
               </ThemedText>
             </ThemedView>
           )}
         </ThemedView>
+        
+        {reviews.length > 0 && (
+          <ThemedView style={styles.statsRow}>
+            <ThemedView style={styles.statItem}>
+              <Ionicons name="star" size={16} color="#FFD700" />
+              <ThemedText style={[styles.statValue, { color: textColor }]}>
+                {averageRating}
+              </ThemedText>
+              <ThemedText style={[styles.statLabel, { color: textColor + '60' }]}>
+                Média
+              </ThemedText>
+            </ThemedView>
+            <ThemedView style={[styles.statDivider, { backgroundColor: borderColor }]} />
+            <ThemedView style={styles.statItem}>
+              <Ionicons name="people" size={16} color={tintColor} />
+              <ThemedText style={[styles.statValue, { color: textColor }]}>
+                {reviews.length}
+              </ThemedText>
+              <ThemedText style={[styles.statLabel, { color: textColor + '60' }]}>
+                {reviews.length === 1 ? 'Avaliação' : 'Avaliações'}
+              </ThemedText>
+            </ThemedView>
+          </ThemedView>
+        )}
       </ThemedView>
 
       {reviews.length === 0 ? (
@@ -100,75 +126,23 @@ export function BookReviewsSection({
       ) : (
         <ThemedView style={styles.reviewsContainer}>
           {reviews.map((review) => (
-            <ThemedView key={review.id} style={styles.reviewCard}>
-              <ThemedView style={styles.reviewHeader}>
-                <ThemedView style={styles.reviewAuthorInfo}>
-                  <ThemedView
-                    style={[
-                      styles.reviewAvatar,
-                      { backgroundColor: review.avatarColor + '30' },
-                    ]}>
-                    <ThemedText
-                      style={[styles.reviewAvatarText, { color: review.avatarColor }]}>
-                      {review.userInitials}
-                    </ThemedText>
-                  </ThemedView>
-                  <ThemedView style={styles.reviewAuthorDetails}>
-                    <ThemedText style={[styles.reviewAuthorName, { color: textColor }]}>
-                      {review.userName}
-                    </ThemedText>
-                    <ThemedView style={styles.reviewMeta}>
-                      {renderStars(review.rating, textColor)}
-                      <ThemedText style={[styles.reviewDate, { color: textColor + '60' }]}>
-                        • {formatTimeAgo(review.createdAt)}
-                      </ThemedText>
-                    </ThemedView>
-                  </ThemedView>
-                </ThemedView>
-                <ThemedView style={styles.reviewActions}>
-                  <TouchableOpacity
-                    style={styles.reviewActionButton}
-                    onPress={() => onToggleLike(review.id)}>
-                    <Ionicons
-                      name={review.liked ? 'heart' : 'heart-outline'}
-                      size={18}
-                      color={review.liked ? '#FF6B6B' : textColor + '60'}
-                    />
-                    <ThemedText
-                      style={[
-                        styles.reviewActionText,
-                        { color: review.liked ? '#FF6B6B' : textColor + '60' },
-                      ]}>
-                      {review.likes}
-                    </ThemedText>
-                  </TouchableOpacity>
-                </ThemedView>
-              </ThemedView>
-              <ThemedText style={[styles.reviewText, { color: textColor + '90' }]}>
-                {review.review}
-              </ThemedText>
-              {review.tags.length > 0 && (
-                <ThemedView style={styles.reviewTags}>
-                  {review.tags.map((tag, index) => (
-                    <ThemedView
-                      key={index}
-                      style={[styles.reviewTag, { backgroundColor: tintColor + '20' }]}>
-                      <ThemedText style={[styles.reviewTagText, { color: tintColor }]}>
-                        {tag}
-                      </ThemedText>
-                    </ThemedView>
-                  ))}
-                </ThemedView>
-              )}
-            </ThemedView>
+            <ReviewCard
+              key={review.id}
+              review={convertToReviewCardData(review)}
+              variant="default"
+              onPress={(reviewData) => onReviewPress?.(reviewData.id)}
+              onLike={(reviewData) => onToggleLike(reviewData.id)}
+              onComment={(reviewData) => {
+                // Optional: can still navigate if onCommentPress is provided
+                // but by default it will just show comments inline
+                if (onCommentPress) {
+                  // Only navigate if explicitly needed, otherwise show inline
+                  // For now, we'll show inline comments
+                }
+              }}
+              onUserPress={onUserPress}
+            />
           ))}
-
-          <TouchableOpacity style={styles.viewMoreButton}>
-            <ThemedText style={[styles.viewMoreText, { color: tintColor }]}>
-              Ver mais avaliações
-            </ThemedText>
-            <Ionicons name="chevron-down" size={18} color={tintColor} />
-          </TouchableOpacity>
         </ThemedView>
       )}
     </ThemedView>
@@ -179,129 +153,59 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 12,
+  sectionHeader: {
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
   },
-  reviewsHeader: {
-    marginBottom: 16,
-  },
-  reviewsHeaderTop: {
+  sectionHeaderTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 12,
+    marginBottom: 12,
   },
-  reviewsStats: {
+  sectionTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  reviewsStatsItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
   },
-  reviewsStatsText: {
-    fontSize: 13,
-    fontWeight: '600',
+  reviewsBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
-  reviewsContainer: {
-    gap: 12,
-  },
-  reviewCard: {
-    padding: 14,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-  },
-  reviewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  reviewAuthorInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  reviewAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reviewAvatarText: {
+  reviewsBadgeText: {
     fontSize: 14,
     fontWeight: '700',
   },
-  reviewAuthorDetails: {
-    flex: 1,
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
   },
-  reviewAuthorName: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  reviewMeta: {
+  statItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    flexWrap: 'wrap',
   },
-  reviewDate: {
-    fontSize: 11,
+  statValue: {
+    fontSize: 16,
+    fontWeight: '700',
   },
-  reviewActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  reviewActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    padding: 4,
-  },
-  reviewActionText: {
+  statLabel: {
     fontSize: 12,
     fontWeight: '500',
   },
-  reviewText: {
-    fontSize: 13,
-    lineHeight: 20,
-    marginBottom: 10,
+  statDivider: {
+    width: 1,
+    height: 20,
   },
-  reviewTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  reviewTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  reviewTagText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  viewMoreButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 14,
-    borderRadius: 12,
-    gap: 6,
-    marginTop: 8,
-  },
-  viewMoreText: {
-    fontSize: 14,
-    fontWeight: '600',
+  reviewsContainer: {
+    gap: 16,
   },
   emptyReviewsContainer: {
     alignItems: 'center',
@@ -317,10 +221,6 @@ const styles = StyleSheet.create({
   emptyReviewsSubtext: {
     fontSize: 13,
     textAlign: 'center',
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    gap: 2,
   },
 });
 
