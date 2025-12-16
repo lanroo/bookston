@@ -1,0 +1,1495 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "My Book App API",
+    "description": "API completa do My Book App - Sistema de gerenciamento de livros, notas, posts sociais e gamificação",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support",
+      "email": "support@mybookapp.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://{project}.supabase.co/rest/v1",
+      "description": "Supabase REST API",
+      "variables": {
+        "project": {
+          "default": "seu-projeto",
+          "description": "ID do seu projeto Supabase"
+        }
+      }
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token JWT do Supabase Auth. Obtenha através de: supabase.auth.getSession()"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" },
+          "message": { "type": "string" },
+          "code": { "type": "string", "nullable": true }
+        },
+        "required": ["error", "message"]
+      },
+      "Book": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "author": { "type": "string" },
+          "status": { 
+            "type": "string", 
+            "enum": ["want-to-read", "reading", "read", "rereading"] 
+          },
+          "userId": { "type": "string", "format": "uuid" },
+          "coverUrl": { "type": "string", "format": "uri", "nullable": true },
+          "rating": { "type": "integer", "minimum": 1, "maximum": 5, "nullable": true },
+          "notes": { "type": "string", "nullable": true },
+          "startedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "finishedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "displayOrder": { "type": "integer", "default": 0 },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "title", "author", "status", "userId", "createdAt", "updatedAt"]
+      },
+      "Note": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "folderId": { "type": "string", "format": "uuid", "nullable": true },
+          "userId": { "type": "string", "format": "uuid" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "title", "content", "userId", "createdAt", "updatedAt"]
+      },
+      "Folder": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "userId": { "type": "string", "format": "uuid" },
+          "color": { "type": "string", "nullable": true },
+          "noteCount": { "type": "integer", "default": 0 },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "name", "userId", "createdAt", "updatedAt"]
+      },
+      "Post": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "userId": { "type": "string", "format": "uuid" },
+          "userName": { "type": "string" },
+          "userUsername": { "type": "string", "nullable": true },
+          "userAvatar": { "type": "string", "format": "uri", "nullable": true },
+          "bookId": { "type": "string", "format": "uuid", "nullable": true },
+          "bookTitle": { "type": "string" },
+          "bookAuthor": { "type": "string", "nullable": true },
+          "bookCoverUrl": { "type": "string", "format": "uri", "nullable": true },
+          "bookStatus": { 
+            "type": "string", 
+            "enum": ["want-to-read", "reading", "read", "rereading"] 
+          },
+          "content": { "type": "string" },
+          "rating": { "type": "integer", "minimum": 1, "maximum": 5, "nullable": true },
+          "hasSpoiler": { "type": "boolean", "default": false },
+          "readingProgress": { "type": "integer", "minimum": 0, "maximum": 100, "nullable": true },
+          "likesCount": { "type": "integer", "default": 0 },
+          "commentsCount": { "type": "integer", "default": 0 },
+          "isLiked": { "type": "boolean", "default": false },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "userId", "bookTitle", "content", "createdAt", "updatedAt"]
+      },
+      "Comment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "postId": { "type": "string", "format": "uuid" },
+          "userId": { "type": "string", "format": "uuid" },
+          "userName": { "type": "string" },
+          "userUsername": { "type": "string", "nullable": true },
+          "userAvatar": { "type": "string", "format": "uri", "nullable": true },
+          "content": { "type": "string" },
+          "parentCommentId": { "type": "string", "format": "uuid", "nullable": true },
+          "parentCommentUserName": { "type": "string", "nullable": true },
+          "parentCommentUserUsername": { "type": "string", "nullable": true },
+          "likesCount": { "type": "integer", "default": 0 },
+          "isLiked": { "type": "boolean", "default": false },
+          "replies": { 
+            "type": "array", 
+            "items": { "$ref": "#/components/schemas/Comment" } 
+          },
+          "repliesCount": { "type": "integer", "default": 0 },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "postId", "userId", "content", "createdAt", "updatedAt"]
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "userId": { "type": "string", "format": "uuid" },
+          "type": { 
+            "type": "string", 
+            "enum": ["follow", "like", "comment", "mention"] 
+          },
+          "actorId": { "type": "string", "format": "uuid" },
+          "actorName": { "type": "string", "nullable": true },
+          "actorUsername": { "type": "string", "nullable": true },
+          "actorAvatar": { "type": "string", "format": "uri", "nullable": true },
+          "targetId": { "type": "string", "format": "uuid", "nullable": true },
+          "postId": { "type": "string", "format": "uuid", "nullable": true },
+          "postTitle": { "type": "string", "nullable": true },
+          "read": { "type": "boolean", "default": false },
+          "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "userId", "type", "actorId", "read", "createdAt"]
+      },
+      "UserPoints": {
+        "type": "object",
+        "properties": {
+          "userId": { "type": "string", "format": "uuid" },
+          "totalPoints": { "type": "integer", "default": 0 },
+          "level": { "type": "integer", "default": 1 },
+          "pointsFromPosts": { "type": "integer", "default": 0 },
+          "pointsFromLikes": { "type": "integer", "default": 0 },
+          "pointsFromComments": { "type": "integer", "default": 0 },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["userId", "totalPoints", "level"]
+      },
+      "FollowStats": {
+        "type": "object",
+        "properties": {
+          "followersCount": { "type": "integer", "default": 0 },
+          "followingCount": { "type": "integer", "default": 0 },
+          "isFollowing": { "type": "boolean", "default": false }
+        },
+        "required": ["followersCount", "followingCount", "isFollowing"]
+      },
+      "BookStats": {
+        "type": "object",
+        "properties": {
+          "total": { "type": "integer" },
+          "wantToRead": { "type": "integer" },
+          "reading": { "type": "integer" },
+          "read": { "type": "integer" },
+          "rereading": { "type": "integer" }
+        },
+        "required": ["total", "wantToRead", "reading", "read", "rereading"]
+      }
+    },
+    "responses": {
+      "UnauthorizedError": {
+        "description": "Não autenticado",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "NotFoundError": {
+        "description": "Recurso não encontrado",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/books": {
+      "get": {
+        "tags": ["Books"],
+        "summary": "Listar livros do usuário",
+        "description": "Retorna todos os livros do usuário autenticado. Pode filtrar por status.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filtrar por status do livro",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["want-to-read", "reading", "read", "rereading"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de livros",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Book" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      },
+      "post": {
+        "tags": ["Books"],
+        "summary": "Criar novo livro",
+        "description": "Adiciona um novo livro à biblioteca do usuário",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "author", "status"],
+                "properties": {
+                  "title": { "type": "string" },
+                  "author": { "type": "string" },
+                  "status": { 
+                    "type": "string", 
+                    "enum": ["want-to-read", "reading", "read", "rereading"] 
+                  },
+                  "coverUrl": { "type": "string", "format": "uri", "nullable": true },
+                  "rating": { "type": "integer", "minimum": 1, "maximum": 5, "nullable": true },
+                  "notes": { "type": "string", "nullable": true },
+                  "startedAt": { "type": "string", "format": "date-time", "nullable": true },
+                  "finishedAt": { "type": "string", "format": "date-time", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Livro criado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Book" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/books/{bookId}": {
+      "get": {
+        "tags": ["Books"],
+        "summary": "Obter livro por ID",
+        "description": "Retorna os detalhes de um livro específico",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalhes do livro",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Book" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      },
+      "patch": {
+        "tags": ["Books"],
+        "summary": "Atualizar livro",
+        "description": "Atualiza informações de um livro existente",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "author": { "type": "string" },
+                  "status": { 
+                    "type": "string", 
+                    "enum": ["want-to-read", "reading", "read", "rereading"] 
+                  },
+                  "coverUrl": { "type": "string", "format": "uri", "nullable": true },
+                  "rating": { "type": "integer", "minimum": 1, "maximum": 5, "nullable": true },
+                  "notes": { "type": "string", "nullable": true },
+                  "startedAt": { "type": "string", "format": "date-time", "nullable": true },
+                  "finishedAt": { "type": "string", "format": "date-time", "nullable": true },
+                  "displayOrder": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Livro atualizado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Book" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      },
+      "delete": {
+        "tags": ["Books"],
+        "summary": "Deletar livro",
+        "description": "Remove um livro da biblioteca",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Livro deletado com sucesso" },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/books/stats": {
+      "get": {
+        "tags": ["Books"],
+        "summary": "Estatísticas de livros",
+        "description": "Retorna estatísticas dos livros do usuário por status",
+        "responses": {
+          "200": {
+            "description": "Estatísticas",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BookStats" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/books/order": {
+      "put": {
+        "tags": ["Books"],
+        "summary": "Atualizar ordem dos livros",
+        "description": "Atualiza a ordem de exibição de múltiplos livros",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["bookId", "displayOrder"],
+                  "properties": {
+                    "bookId": { "type": "string", "format": "uuid" },
+                    "displayOrder": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Ordem atualizada" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/notes": {
+      "get": {
+        "tags": ["Notes"],
+        "summary": "Listar notas",
+        "description": "Retorna todas as notas do usuário. Pode filtrar por pasta.",
+        "parameters": [
+          {
+            "name": "folderId",
+            "in": "query",
+            "description": "ID da pasta para filtrar (null para notas sem pasta)",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid", "nullable": true }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de notas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Note" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      },
+      "post": {
+        "tags": ["Notes"],
+        "summary": "Criar nova nota",
+        "description": "Cria uma nova nota",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "content"],
+                "properties": {
+                  "title": { "type": "string" },
+                  "content": { "type": "string" },
+                  "folderId": { "type": "string", "format": "uuid", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Nota criada",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Note" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/notes/{noteId}": {
+      "get": {
+        "tags": ["Notes"],
+        "summary": "Obter nota por ID",
+        "parameters": [
+          {
+            "name": "noteId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalhes da nota",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Note" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      },
+      "patch": {
+        "tags": ["Notes"],
+        "summary": "Atualizar nota",
+        "parameters": [
+          {
+            "name": "noteId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "content": { "type": "string" },
+                  "folderId": { "type": "string", "format": "uuid", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Nota atualizada",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Note" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      },
+      "delete": {
+        "tags": ["Notes"],
+        "summary": "Deletar nota",
+        "parameters": [
+          {
+            "name": "noteId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Nota deletada" },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/folders": {
+      "get": {
+        "tags": ["Notes"],
+        "summary": "Listar pastas",
+        "description": "Retorna todas as pastas do usuário com contagem de notas",
+        "responses": {
+          "200": {
+            "description": "Lista de pastas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Folder" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      },
+      "post": {
+        "tags": ["Notes"],
+        "summary": "Criar pasta",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "color": { "type": "string", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pasta criada",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Folder" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/folders/{folderId}": {
+      "delete": {
+        "tags": ["Notes"],
+        "summary": "Deletar pasta",
+        "parameters": [
+          {
+            "name": "folderId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Pasta deletada" },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/posts": {
+      "get": {
+        "tags": ["Posts"],
+        "summary": "Listar posts",
+        "description": "Retorna posts do feed (todos os usuários)",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20, "minimum": 1, "maximum": 100 }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": { "type": "integer", "default": 0, "minimum": 0 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de posts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Post" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      },
+      "post": {
+        "tags": ["Posts"],
+        "summary": "Criar post",
+        "description": "Cria um novo post sobre um livro",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["bookTitle", "content", "bookStatus"],
+                "properties": {
+                  "bookId": { "type": "string", "format": "uuid", "nullable": true },
+                  "bookTitle": { "type": "string" },
+                  "bookAuthor": { "type": "string", "nullable": true },
+                  "bookCoverUrl": { "type": "string", "format": "uri", "nullable": true },
+                  "bookStatus": { 
+                    "type": "string", 
+                    "enum": ["want-to-read", "reading", "read", "rereading"] 
+                  },
+                  "content": { "type": "string" },
+                  "rating": { "type": "integer", "minimum": 1, "maximum": 5, "nullable": true },
+                  "hasSpoiler": { "type": "boolean", "default": false },
+                  "readingProgress": { "type": "integer", "minimum": 0, "maximum": 100, "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Post criado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Post" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/posts/{postId}": {
+      "get": {
+        "tags": ["Posts"],
+        "summary": "Obter post por ID",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalhes do post",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Post" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      },
+      "delete": {
+        "tags": ["Posts"],
+        "summary": "Deletar post",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Post deletado" },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/posts/user/{userId}": {
+      "get": {
+        "tags": ["Posts"],
+        "summary": "Listar posts de um usuário",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20 }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": { "type": "integer", "default": 0 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de posts do usuário",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Post" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/posts/{postId}/like": {
+      "post": {
+        "tags": ["Posts"],
+        "summary": "Toggle like no post",
+        "description": "Curtir ou descurtir um post",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status do like atualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "isLiked": { "type": "boolean" },
+                    "likesCount": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/posts/{postId}/comments": {
+      "get": {
+        "tags": ["Comments"],
+        "summary": "Listar comentários de um post",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de comentários (com respostas aninhadas)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Comment" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      },
+      "post": {
+        "tags": ["Comments"],
+        "summary": "Criar comentário",
+        "description": "Cria um comentário em um post (pode ser resposta a outro comentário)",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["content"],
+                "properties": {
+                  "content": { "type": "string" },
+                  "parentCommentId": { "type": "string", "format": "uuid", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Comentário criado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Comment" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/comments/{commentId}/like": {
+      "post": {
+        "tags": ["Comments"],
+        "summary": "Toggle like no comentário",
+        "parameters": [
+          {
+            "name": "commentId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status do like atualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "isLiked": { "type": "boolean" },
+                    "likesCount": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/comments/{commentId}": {
+      "delete": {
+        "tags": ["Comments"],
+        "summary": "Deletar comentário",
+        "parameters": [
+          {
+            "name": "commentId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Comentário deletado" },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Listar notificações",
+        "description": "Retorna notificações do usuário autenticado",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 50 }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": { "type": "integer", "default": 0 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de notificações",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Notification" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/notifications/stats": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Estatísticas de notificações",
+        "description": "Retorna contagem de notificações não lidas",
+        "responses": {
+          "200": {
+            "description": "Estatísticas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "unreadCount": { "type": "integer" },
+                    "totalCount": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/notifications/mark-read": {
+      "post": {
+        "tags": ["Notifications"],
+        "summary": "Marcar notificações como lidas",
+        "description": "Marca todas as notificações como lidas",
+        "responses": {
+          "200": { "description": "Notificações marcadas como lidas" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/notifications/{notificationId}/read": {
+      "post": {
+        "tags": ["Notifications"],
+        "summary": "Marcar notificação como lida",
+        "parameters": [
+          {
+            "name": "notificationId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Notificação marcada como lida" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/follows/{userId}": {
+      "post": {
+        "tags": ["Follows"],
+        "summary": "Seguir usuário",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Usuário seguido com sucesso" },
+          "400": { "description": "Não é possível seguir a si mesmo" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      },
+      "delete": {
+        "tags": ["Follows"],
+        "summary": "Deixar de seguir usuário",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Deixou de seguir com sucesso" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/follows/{userId}/stats": {
+      "get": {
+        "tags": ["Follows"],
+        "summary": "Estatísticas de seguidores",
+        "description": "Retorna contagem de seguidores, seguindo e se o usuário atual está seguindo",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estatísticas",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FollowStats" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/follows/{userId}/followers": {
+      "get": {
+        "tags": ["Follows"],
+        "summary": "Listar seguidores",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 100 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de seguidores",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string", "format": "uuid" },
+                      "name": { "type": "string" },
+                      "username": { "type": "string", "nullable": true },
+                      "avatarUrl": { "type": "string", "format": "uri", "nullable": true },
+                      "isFollowing": { "type": "boolean" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/follows/{userId}/following": {
+      "get": {
+        "tags": ["Follows"],
+        "summary": "Listar usuários seguidos",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 100 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de usuários seguidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string", "format": "uuid" },
+                      "name": { "type": "string" },
+                      "username": { "type": "string", "nullable": true },
+                      "avatarUrl": { "type": "string", "format": "uri", "nullable": true },
+                      "isFollowing": { "type": "boolean" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/profile": {
+      "patch": {
+        "tags": ["Profile"],
+        "summary": "Atualizar perfil",
+        "description": "Atualiza informações do perfil do usuário",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "username": { "type": "string" },
+                  "avatarUrl": { "type": "string", "format": "uri", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Perfil atualizado" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/profile/username/check": {
+      "post": {
+        "tags": ["Profile"],
+        "summary": "Verificar disponibilidade de username",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username"],
+                "properties": {
+                  "username": { "type": "string", "minLength": 3, "maxLength": 20 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Disponibilidade",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "available": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/points": {
+      "get": {
+        "tags": ["Points"],
+        "summary": "Obter pontos do usuário",
+        "description": "Retorna pontos, nível e estatísticas do usuário autenticado",
+        "responses": {
+          "200": {
+            "description": "Pontos do usuário",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserPoints" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/points/{userId}": {
+      "get": {
+        "tags": ["Points"],
+        "summary": "Obter pontos de um usuário",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pontos do usuário",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserPoints" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/search": {
+      "get": {
+        "tags": ["Search"],
+        "summary": "Busca unificada",
+        "description": "Busca em usuários, livros, autores e editoras",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "types",
+            "in": "query",
+            "description": "Tipos de busca (all, users, books, authors, publishers)",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["all", "users", "books", "authors", "publishers"]
+              },
+              "default": ["all"]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultados da busca",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": { "type": "string", "enum": ["user"] },
+                          "id": { "type": "string" },
+                          "title": { "type": "string" },
+                          "subtitle": { "type": "string", "nullable": true },
+                          "imageUrl": { "type": "string", "format": "uri", "nullable": true }
+                        }
+                      }
+                    },
+                    "books": { "type": "array" },
+                    "authors": { "type": "array" },
+                    "publishers": { "type": "array" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/books/search": {
+      "get": {
+        "tags": ["Books"],
+        "summary": "Buscar livros em APIs externas",
+        "description": "Busca livros na Google Books e Open Library",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "maxResults",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de livros encontrados",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string" },
+                      "title": { "type": "string" },
+                      "authors": { "type": "array", "items": { "type": "string" } },
+                      "publishedDate": { "type": "string", "nullable": true },
+                      "coverUrl": { "type": "string", "format": "uri", "nullable": true },
+                      "pageCount": { "type": "integer", "nullable": true },
+                      "categories": { "type": "array", "items": { "type": "string" }, "nullable": true },
+                      "language": { "type": "string", "nullable": true },
+                      "source": { "type": "string", "enum": ["google", "openlibrary"] },
+                      "isbn": { "type": "string", "nullable": true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/storage/avatar": {
+      "post": {
+        "tags": ["Storage"],
+        "summary": "Upload de avatar",
+        "description": "Faz upload de imagem de avatar para o Supabase Storage",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Arquivo de imagem (JPG, PNG)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "URL do avatar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": { "type": "string", "format": "uri" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      },
+      "delete": {
+        "tags": ["Storage"],
+        "summary": "Deletar avatar",
+        "responses": {
+          "204": { "description": "Avatar deletado" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Books",
+      "description": "Operações relacionadas a livros da biblioteca pessoal"
+    },
+    {
+      "name": "Notes",
+      "description": "Operações relacionadas a notas e pastas"
+    },
+    {
+      "name": "Posts",
+      "description": "Operações relacionadas a posts sociais sobre livros"
+    },
+    {
+      "name": "Comments",
+      "description": "Operações relacionadas a comentários em posts"
+    },
+    {
+      "name": "Notifications",
+      "description": "Operações relacionadas a notificações"
+    },
+    {
+      "name": "Follows",
+      "description": "Operações relacionadas a seguir/deixar de seguir usuários"
+    },
+    {
+      "name": "Profile",
+      "description": "Operações relacionadas ao perfil do usuário"
+    },
+    {
+      "name": "Points",
+      "description": "Operações relacionadas ao sistema de pontos e gamificação"
+    },
+    {
+      "name": "Search",
+      "description": "Operações de busca"
+    },
+    {
+      "name": "Storage",
+      "description": "Operações de upload de arquivos"
+    }
+  ]
+}
