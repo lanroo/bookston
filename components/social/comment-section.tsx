@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 
+import { PremiumBadge } from '@/components/premium-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/contexts/AuthContext';
@@ -171,17 +172,22 @@ function CommentItem({
             )}
             <View style={styles.commentUserInfo}>
               <View style={styles.commentUserTopRow}>
-                <ThemedText
-                  style={[
-                    isReply ? styles.commentUserNameReply : styles.commentUserName,
-                    {
-                      color: isOwnComment ? tintColor : textColor,
-                      fontWeight: isOwnComment ? '700' : '600',
-                    },
-                  ]}
-                  numberOfLines={1}>
-                  {comment.userName}
-                </ThemedText>
+                <View style={styles.commentNameWithBadge}>
+                  <ThemedText
+                    style={[
+                      isReply ? styles.commentUserNameReply : styles.commentUserName,
+                      {
+                        color: isOwnComment ? tintColor : textColor,
+                        fontWeight: isOwnComment ? '700' : '600',
+                      },
+                    ]}
+                    numberOfLines={1}>
+                    {comment.userName}
+                  </ThemedText>
+                  {comment.userIsPremium && (
+                    <PremiumBadge size="small" style={styles.commentPremiumBadge} />
+                  )}
+                </View>
                 {isOwnComment && !isReply && (
                   <ThemedView style={[styles.ownCommentBadgeContainer, { backgroundColor: tintColor + '20' }]}>
                     <ThemedText style={[styles.ownCommentBadge, { color: tintColor }]}>
@@ -1086,6 +1092,15 @@ const styles = StyleSheet.create({
     gap: 8,
     flexWrap: 'wrap',
   },
+  commentNameWithBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  commentPremiumBadge: {
+    marginTop: 0,
+    alignSelf: 'center',
+  },
   commentUserName: {
     fontSize: 15,
     fontWeight: '600',
@@ -1318,9 +1333,6 @@ const styles = StyleSheet.create({
   replyContent: {
     flex: 1,
     marginLeft: 12,
-  },
-  commentContentContainerReply: {
-    marginBottom: 10,
   },
   replyToBadge: {
     flexDirection: 'row',
