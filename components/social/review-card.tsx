@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
+import { PremiumBadge } from '@/components/premium-badge';
 import { CommentSection } from '@/components/social/comment-section';
 import { PointsDisplay } from '@/components/social/points-display';
 import { ThemedText } from '@/components/themed-text';
@@ -17,6 +18,7 @@ export interface ReviewCardData {
   userName: string;
   userUsername?: string;
   userAvatar?: string;
+  userIsPremium?: boolean;
   userInitials?: string;
   avatarColor?: string;
   content: string;
@@ -152,9 +154,14 @@ export function ReviewCard({
             <View style={styles.userDetails}>
               <View style={styles.userNameRow}>
                 <View style={styles.userNameContainer}>
-                  <ThemedText style={[styles.userName, { color: textColor }]}>
-                    {review.userName}
-                  </ThemedText>
+                  <View style={styles.nameWithBadge}>
+                    <ThemedText style={[styles.userName, { color: textColor }]}>
+                      {review.userName}
+                    </ThemedText>
+                    {review.userIsPremium && (
+                      <PremiumBadge size="small" style={styles.premiumBadgeInline} />
+                    )}
+                  </View>
                   {review.userUsername && (
                     <ThemedText style={[styles.userUsername, { color: textColor, opacity: 0.5 }]}>
                       @{review.userUsername}
@@ -394,6 +401,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     flex: 1,
+  },
+  nameWithBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  premiumBadgeInline: {
+    marginTop: 0,
+    alignSelf: 'center',
   },
   userName: {
     fontSize: 15,

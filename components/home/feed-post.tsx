@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
+import { PremiumBadge } from '@/components/premium-badge';
 import { CommentSection, PointsDisplay } from '@/components/social';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -17,6 +18,7 @@ export interface FeedPost {
   userName: string;
   userUsername?: string;
   userAvatar?: string;
+  userIsPremium?: boolean;
   bookId?: string;
   bookTitle: string;
   bookAuthor: string;
@@ -121,9 +123,14 @@ export function FeedPost({ post, currentUserId, onPress, onLike, onComment, onOp
             <View style={styles.userDetails}>
               <View style={styles.userNameRow}>
                 <View style={styles.userNameContainer}>
-                  <ThemedText style={[styles.userName, { color: textColor }]}>
-                    {post.userName}
-                  </ThemedText>
+                  <View style={styles.nameWithBadge}>
+                    <ThemedText style={[styles.userName, { color: textColor }]}>
+                      {post.userName}
+                    </ThemedText>
+                    {post.userIsPremium && (
+                      <PremiumBadge size="small" style={styles.premiumBadgeInline} />
+                    )}
+                  </View>
                   {post.userUsername && (
                     <ThemedText style={[styles.userUsername, { color: textColor, opacity: 0.5 }]}>
                       @{post.userUsername}
@@ -292,6 +299,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     flex: 1,
+  },
+  nameWithBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  premiumBadgeInline: {
+    marginTop: 0,
+    alignSelf: 'center',
   },
   userName: {
     fontSize: 15,

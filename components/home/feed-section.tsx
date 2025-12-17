@@ -49,6 +49,7 @@ export function FeedSection({
     userName: post.userName,
     userUsername: post.userUsername,
     userAvatar: post.userAvatar,
+    userIsPremium: post.userIsPremium ?? false,
     content: post.content,
     rating: post.rating,
     likes: post.likes,

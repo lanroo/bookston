@@ -49,6 +49,7 @@ export default function HomeScreen() {
       userName: post.userName,
       userUsername: post.userUsername,
       userAvatar: post.userAvatar,
+      userIsPremium: post.userIsPremium ?? false,
       bookId: post.bookId,
       bookTitle: post.bookTitle,
       bookAuthor: post.bookAuthor,
@@ -436,7 +437,7 @@ export default function HomeScreen() {
                   MEUS PONTOS
                 </ThemedText>
                 <ThemedText style={[styles.pointsValue, { color: textColor }]}>
-                  {userPoints.totalPoints.toLocaleString()}
+                  {(userPoints?.totalPoints ?? 0).toLocaleString()}
                   <ThemedText style={[styles.pointsUnit, { color: isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.4)' }]}>
                     {' '}pts
                   </ThemedText>
