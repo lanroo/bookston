@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
-import { Redirect, useRouter } from 'expo-router';
+import { SplashScreen } from '@/components/splash-screen';
 import { useAuth } from '@/contexts/AuthContext';
-import { View, ActivityIndicator } from 'react-native';
+import { Redirect, useRouter } from 'expo-router';
+import { useEffect } from 'react';
 
 export default function Index() {
   const { session, loading } = useAuth();
@@ -18,11 +18,7 @@ export default function Index() {
   }, [session, loading]);
 
   if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <SplashScreen appName="My Book App" />;
   }
 
   return <Redirect href="/login" />;
