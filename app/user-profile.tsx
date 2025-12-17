@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams, useFocusEffect, Stack } from 'expo-router';
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PremiumBadge } from '@/components/premium-badge';
 import { FollowersModal } from '@/components/profile/followers-modal';
-import { PointsDisplay } from '@/components/social';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,6 +35,7 @@ export default function UserProfileScreen() {
     username?: string;
     avatarUrl?: string;
     bio?: string;
+    isPremium?: boolean;
   } | null>(null);
   const [books, setBooks] = useState<Book[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -66,7 +67,7 @@ export default function UserProfileScreen() {
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('user_id, name, username, avatar_url, bio')
+        .select('user_id, name, username, avatar_url, bio, is_premium')
         .eq('user_id', userId)
         .single();
 
@@ -83,6 +84,7 @@ export default function UserProfileScreen() {
         username: profile.username || undefined,
         avatarUrl: profile.avatar_url || undefined,
         bio: profile.bio || undefined,
+        isPremium: profile.is_premium || false,
       });
 
       try {
@@ -227,9 +229,14 @@ export default function UserProfileScreen() {
             </View>
 
             <View style={styles.userInfo}>
-              <ThemedText style={styles.userName}>
-                {userProfile.name}
-              </ThemedText>
+              <View style={styles.nameRow}>
+                <ThemedText style={styles.userName}>
+                  {userProfile.name}
+                </ThemedText>
+                {userProfile.isPremium && (
+                  <PremiumBadge size="medium" style={styles.premiumBadge} />
+                )}
+              </View>
               {userProfile.username && (
                 <View style={styles.usernameRow}>
                   <Ionicons name="at" size={12} color={tintColor} />
@@ -472,11 +479,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
   userName: {
     fontSize: 24,
     fontWeight: '800',
-    marginBottom: 4,
     textAlign: 'center',
+  },
+  premiumBadge: {
+    marginTop: 0,
   },
   usernameRow: {
     flexDirection: 'row',

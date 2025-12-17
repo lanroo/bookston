@@ -2,9 +2,9 @@
 
 import { supabase } from '@/lib/supabase';
 import type {
-  DatabasePost,
-  Post,
-  PostCreateData
+    DatabasePost,
+    Post,
+    PostCreateData
 } from '@/types';
 import { logger } from '@/utils/logger';
 
@@ -19,11 +19,11 @@ export class PostsService {
   }
 
 
-  private static async getUserProfile(userId: string): Promise<{ name: string; username?: string; avatar?: string }> {
+  private static async getUserProfile(userId: string): Promise<{ name: string; username?: string; avatar?: string; isPremium?: boolean }> {
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('name, username, avatar_url')
+        .select('name, username, avatar_url, is_premium')
         .eq('user_id', userId)
         .single();
 
@@ -32,6 +32,7 @@ export class PostsService {
           name: profile.name || 'Usuário',
           username: profile.username || undefined,
           avatar: profile.avatar_url || undefined,
+          isPremium: profile.is_premium || false,
         };
       }
 
@@ -41,6 +42,7 @@ export class PostsService {
         name: 'Usuário',
         username: undefined,
         avatar: undefined,
+        isPremium: false,
       };
     } catch (error) {
       logger.error('Error getting user profile', error, { userId });
@@ -48,6 +50,7 @@ export class PostsService {
       name: 'Usuário',
         username: undefined,
         avatar: undefined,
+        isPremium: false,
     };
     }
   }
@@ -113,48 +116,63 @@ export class PostsService {
 
       const posts = await Promise.all(
         (data || []).map(async (post: DatabasePost) => {
-          const postUserId = post.user_id;
-          const userProfile = await this.getUserProfile(postUserId);
-          const isLiked = await this.checkIfLiked(post.id, userId);
+          try {
+            const postUserId = post.user_id;
+            const userProfile = await this.getUserProfile(postUserId);
+            const isLiked = await this.checkIfLiked(post.id, userId);
 
-          // Get actual counts from database to ensure accuracy
-          const [likesResult, commentsResult] = await Promise.all([
-            supabase
-              .from('post_likes')
-              .select('*', { count: 'exact', head: true })
-              .eq('post_id', post.id),
-            supabase
-              .from('comments')
-              .select('*', { count: 'exact', head: true })
-              .eq('post_id', post.id),
-          ]);
+            // Get actual counts from database to ensure accuracy
+            const [likesResult, commentsResult] = await Promise.all([
+              supabase
+                .from('post_likes')
+                .select('*', { count: 'exact', head: true })
+                .eq('post_id', post.id),
+              supabase
+                .from('comments')
+                .select('*', { count: 'exact', head: true })
+                .eq('post_id', post.id),
+            ]);
 
-          const actualLikesCount = likesResult.count ?? post.likes_count ?? 0;
-          const actualCommentsCount = commentsResult.count ?? post.comments_count ?? 0;
-          if (actualLikesCount !== post.likes_count || actualCommentsCount !== post.comments_count) {
-            await supabase
-              .from('posts')
-              .update({
-                likes_count: actualLikesCount,
-                comments_count: actualCommentsCount,
-              })
-              .eq('id', post.id);
+            const actualLikesCount = likesResult.count ?? post.likes_count ?? 0;
+            const actualCommentsCount = commentsResult.count ?? post.comments_count ?? 0;
+            if (actualLikesCount !== post.likes_count || actualCommentsCount !== post.comments_count) {
+              await supabase
+                .from('posts')
+                .update({
+                  likes_count: actualLikesCount,
+                  comments_count: actualCommentsCount,
+                })
+                .eq('id', post.id);
+            }
+
+            return {
+              ...this.mapDatabasePostToPost(
+                { ...post, likes_count: actualLikesCount, comments_count: actualCommentsCount },
+                userId
+              ),
+              userName: userProfile.name,
+              userUsername: userProfile.username,
+              userAvatar: userProfile.avatar,
+              userIsPremium: userProfile.isPremium ?? false,
+              isLiked,
+            };
+          } catch (error) {
+            logger.error('Error processing post', error, { postId: post.id, userId: post.user_id });
+            // Return post with default values if profile loading fails
+            return {
+              ...this.mapDatabasePostToPost(post, userId),
+              userName: 'Usuário',
+              userUsername: undefined,
+              userAvatar: undefined,
+              userIsPremium: false,
+              isLiked: false,
+            };
           }
-
-          return {
-            ...this.mapDatabasePostToPost(
-              { ...post, likes_count: actualLikesCount, comments_count: actualCommentsCount },
-              userId
-            ),
-            userName: userProfile.name,
-            userUsername: userProfile.username,
-            userAvatar: userProfile.avatar,
-            isLiked,
-          };
         })
       );
 
-      return posts;
+      // Filter out any null/undefined posts that might have failed
+      return posts.filter((post): post is Post => post !== null && post !== undefined);
     } catch (error) {
       logger.error('Error fetching posts', error, { userId, limit, offset });
       throw error;
@@ -186,6 +204,7 @@ export class PostsService {
         userName: userProfile.name,
         userUsername: userProfile.username,
         userAvatar: userProfile.avatar,
+        userIsPremium: userProfile.isPremium,
         isLiked,
       };
     } catch (error) {

@@ -11,6 +11,7 @@ export interface Post {
   userName: string;
   userUsername?: string;
   userAvatar?: string;
+  userIsPremium?: boolean;
   bookId: string;
   bookTitle: string;
   bookAuthor: string;
@@ -46,6 +47,7 @@ export interface Comment {
   userName: string;
   userUsername?: string;
   userAvatar?: string;
+  userIsPremium?: boolean;
   content: string;
   likesCount: number;
   isLiked: boolean;

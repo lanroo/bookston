@@ -2,9 +2,9 @@
 
 import { supabase } from '@/lib/supabase';
 import type {
-  Comment,
-  CommentCreateData,
-  DatabaseComment
+    Comment,
+    CommentCreateData,
+    DatabaseComment
 } from '@/types';
 import { logger } from '@/utils/logger';
 
@@ -23,11 +23,11 @@ export class CommentsService {
   /**
    * Get user profile info
    */
-  private static async getUserProfile(userId: string): Promise<{ name: string; username?: string; avatar?: string }> {
+  private static async getUserProfile(userId: string): Promise<{ name: string; username?: string; avatar?: string; isPremium?: boolean }> {
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('name, username, avatar_url')
+        .select('name, username, avatar_url, is_premium')
         .eq('user_id', userId)
         .single();
 
@@ -36,6 +36,7 @@ export class CommentsService {
           name: profile.name || 'Usuário',
           username: profile.username || undefined,
           avatar: profile.avatar_url || undefined,
+          isPremium: profile.is_premium || false,
         };
       }
 
@@ -48,6 +49,7 @@ export class CommentsService {
         name: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
         username: user.user_metadata?.username,
         avatar: user.user_metadata?.avatar_url,
+        isPremium: user.user_metadata?.is_premium || false,
       };
     }
 
@@ -55,6 +57,7 @@ export class CommentsService {
         name: 'Usuário',
         username: undefined,
         avatar: undefined,
+        isPremium: false,
       };
     } catch (error) {
       logger.error('Error getting user profile', error, { userId });
@@ -181,6 +184,7 @@ export class CommentsService {
             userName: replyUserProfile.name,
             userUsername: replyUserProfile.username,
             userAvatar: replyUserProfile.avatar,
+            userIsPremium: replyUserProfile.isPremium,
             isLiked: replyIsLiked,
             parentCommentId: dbComment.id,
             parentCommentUserName: parentUserProfile.name,
@@ -193,6 +197,7 @@ export class CommentsService {
             userName: userProfile.name,
             userUsername: userProfile.username,
             userAvatar: userProfile.avatar,
+            userIsPremium: userProfile.isPremium,
             isLiked,
           replies,
           repliesCount: replies.length,
@@ -303,6 +308,7 @@ export class CommentsService {
         userName: userProfile.name,
         userUsername: userProfile.username,
         userAvatar: userProfile.avatar,
+        userIsPremium: userProfile.isPremium,
         isLiked,
       };
     } catch (error) {
