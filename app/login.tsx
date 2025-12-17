@@ -3,12 +3,12 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -48,14 +48,16 @@ export default function LoginScreen() {
       const { error } = await signIn(email, password);
       
       if (error) {
-        setError(error.message || 'Erro ao fazer login. Verifique suas credenciais.');
-        Alert.alert('Erro', error.message || 'Erro ao fazer login. Verifique suas credenciais.');
+        const errorMessage = error.message || 'Erro ao fazer login. Verifique suas credenciais.';
+        setError(errorMessage);
+        Alert.alert('Erro no Login', errorMessage);
       } else {
         router.replace('/(tabs)');
       }
     } catch (err: any) {
-      setError('Erro inesperado. Tente novamente.');
-      Alert.alert('Erro', 'Erro inesperado. Tente novamente.');
+      const errorMessage = err?.message || 'Erro inesperado. Tente novamente.';
+      setError(errorMessage);
+      Alert.alert('Erro Inesperado', errorMessage);
     } finally {
       setIsLoading(false);
     }
