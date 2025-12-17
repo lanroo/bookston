@@ -44,7 +44,7 @@
     "expo-haptics": "~15.0.8",
     "expo-image": "~3.0.11",
     "expo-image-picker": "^17.0.9",
-    "expo-linear-gradient": "^15.0.8",
+    "expo-linear-gradient": "15.0.8",
     "expo-linking": "~8.0.10",
     "expo-notifications": "^0.32.14",
     "expo-router": "~6.0.17",
@@ -69,9 +69,9 @@
     "@types/react": "~19.1.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
-    "typescript": "~5.9.2",
     "express": "^4.18.2",
-    "swagger-ui-express": "^5.0.0"
+    "swagger-ui-express": "^5.0.0",
+    "typescript": "~5.9.2"
   },
   "private": true
 }

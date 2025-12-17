@@ -60,18 +60,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    console.log('🔐 [AUTH] Iniciando login...');
+    console.log('📧 [AUTH] Email:', email);
+    console.log('🔑 [AUTH] Senha fornecida:', password ? '***' : 'VAZIA');
+    
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('⏳ [AUTH] Chamando supabase.auth.signInWithPassword...');
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      console.log('📦 [AUTH] Resposta recebida:');
+      console.log('   - Data:', data ? 'Presente' : 'Nula');
+      console.log('   - Error:', error ? JSON.stringify(error, null, 2) : 'Nenhum erro');
+
       if (error) {
+        console.error('❌ [AUTH] Erro no login:');
+        console.error('   - Código:', error.status || 'N/A');
+        console.error('   - Mensagem:', error.message);
+        console.error('   - Nome:', error.name);
+        console.error('   - Erro completo:', JSON.stringify(error, null, 2));
         return { error };
       }
 
+      if (data?.user) {
+        console.log('✅ [AUTH] Login bem-sucedido!');
+        console.log('   - User ID:', data.user.id);
+        console.log('   - Email:', data.user.email);
+        console.log('   - Email confirmado:', data.user.email_confirmed_at ? 'Sim' : 'Não');
+        console.log('   - Metadata:', JSON.stringify(data.user.user_metadata, null, 2));
+      } else {
+        console.warn('⚠️ [AUTH] Login retornou sem erro, mas sem user também');
+      }
+
       return { error: null };
-    } catch (error) {
+    } catch (error: any) {
+      console.error('💥 [AUTH] Exceção capturada no login:');
+      console.error('   - Tipo:', error?.constructor?.name || 'Desconhecido');
+      console.error('   - Mensagem:', error?.message || 'Sem mensagem');
+      console.error('   - Stack:', error?.stack || 'Sem stack');
+      console.error('   - Erro completo:', JSON.stringify(error, null, 2));
       return { error: error as SupabaseAuthError };
     }
   };
